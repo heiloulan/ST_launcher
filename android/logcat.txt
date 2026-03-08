@@ -1,0 +1,23 @@
+--------- beginning of main
+03-08 06:22:53.180  7402  7508 I NodeService: Extracting 12 files from assets/node_bundle
+03-08 06:22:54.130  7402  7508 D NodeService: Symlink: libz.so.1 -> libz.so.1.3.1
+03-08 06:22:54.131  7402  7508 D NodeService: Symlink: libicudata.so.78 -> libicudata.so.78.2
+03-08 06:22:54.131  7402  7508 D NodeService: Symlink: libicui18n.so.78 -> libicui18n.so.78.2
+03-08 06:22:54.131  7402  7508 D NodeService: Symlink: libicuuc.so.78 -> libicuuc.so.78.2
+03-08 06:22:54.131  7402  7508 D NodeService: Symlink: libsqlite3.so -> libsqlite3.so.3.52.0
+03-08 06:22:54.132  7402  7508 I NodeService: Node bundle extraction complete
+03-08 06:22:54.132  7402  7508 I NodeService: Node bundle extracted to: /data/user/0/com.wlav.stlauncher/files/node_bundle
+03-08 06:22:54.133  7402  7508 I NodeService: Using port: 38237
+03-08 06:22:54.237  7402  7508 E NodeService: Failed to start Node.js
+03-08 06:22:54.237  7402  7508 E NodeService: java.io.IOException: Cannot run program "/data/user/0/com.wlav.stlauncher/files/node_bundle/node" (in directory "/data/user/0/com.wlav.stlauncher/files/node_bundle"): error=13, Permission denied
+03-08 06:22:54.237  7402  7508 E NodeService: 	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1050)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at com.wlav.stlauncher.NodeService.onStartCommand$lambda$3(NodeService.kt:69)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at com.wlav.stlauncher.NodeService.$r8$lambda$5zOc0e_MKOe4WE3lHNTF9Gebbyc(Unknown Source:0)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at com.wlav.stlauncher.NodeService$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at java.lang.Thread.run(Thread.java:1563)
+03-08 06:22:54.237  7402  7508 E NodeService: Caused by: java.io.IOException: error=13, Permission denied
+03-08 06:22:54.237  7402  7508 E NodeService: 	at java.lang.UNIXProcess.forkAndExec(Native Method)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at java.lang.UNIXProcess.<init>(UNIXProcess.java:133)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at java.lang.ProcessImpl.start(ProcessImpl.java:141)
+03-08 06:22:54.237  7402  7508 E NodeService: 	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1029)
+03-08 06:22:54.237  7402  7508 E NodeService: 	... 4 more

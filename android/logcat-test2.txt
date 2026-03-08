@@ -1,0 +1,18 @@
+--------- beginning of main
+03-08 06:25:32.497  7685  7759 I NodeService: Node bundle already extracted (version v24.13.0)
+03-08 06:25:32.497  7685  7759 I NodeService: Node bundle extracted to: /data/user/0/com.wlav.stlauncher/files/node_bundle
+03-08 06:25:32.502  7685  7759 I NodeService: Using port: 35499
+03-08 06:25:32.613  7685  7759 E NodeService: Node binary not found at /data/app/~~6kJsQSG-6KxfKlWPqWXtoQ==/com.wlav.stlauncher-MKVRl7LOUpAPsW0qM6pxDA==/lib/arm64/libnode.so
+03-08 06:25:32.618  7685  7759 E NodeService: Failed to start Node.js
+03-08 06:25:32.618  7685  7759 E NodeService: java.io.IOException: Cannot run program "/data/app/~~6kJsQSG-6KxfKlWPqWXtoQ==/com.wlav.stlauncher-MKVRl7LOUpAPsW0qM6pxDA==/lib/arm64/libnode.so" (in directory "/data/user/0/com.wlav.stlauncher/files/node_bundle"): error=2, No such file or directory
+03-08 06:25:32.618  7685  7759 E NodeService: 	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1050)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at com.wlav.stlauncher.NodeService.onStartCommand$lambda$3(NodeService.kt:71)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at com.wlav.stlauncher.NodeService.$r8$lambda$5zOc0e_MKOe4WE3lHNTF9Gebbyc(Unknown Source:0)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at com.wlav.stlauncher.NodeService$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at java.lang.Thread.run(Thread.java:1563)
+03-08 06:25:32.618  7685  7759 E NodeService: Caused by: java.io.IOException: error=2, No such file or directory
+03-08 06:25:32.618  7685  7759 E NodeService: 	at java.lang.UNIXProcess.forkAndExec(Native Method)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at java.lang.UNIXProcess.<init>(UNIXProcess.java:133)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at java.lang.ProcessImpl.start(ProcessImpl.java:141)
+03-08 06:25:32.618  7685  7759 E NodeService: 	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1029)
+03-08 06:25:32.618  7685  7759 E NodeService: 	... 4 more

@@ -1,0 +1,79 @@
+=== Termux Install Diagnostic Log ===
+Sun Mar  8 15:53:38 CST 2026
+Starting installation...
+[1/4] Setting up Termux tools...
+No mirror or mirror group selected. You might want to select one by running 'termux-change-repo'
+Checking availability of current mirror:
+[*] https://packages-cf.termux.dev/apt/termux-main/: ok
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Hit:1 https://packages-cf.termux.dev/apt/termux-main stable InRelease
+Reading package lists...
+Building dependency tree...
+Reading state information...
+72 packages can be upgraded. Run 'apt list --upgradable' to see them.
+No mirror or mirror group selected. You might want to select one by running 'termux-change-repo'
+Checking availability of current mirror:
+[*] https://packages-cf.termux.dev/apt/termux-main/: ok
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Reading package lists...
+Building dependency tree...
+Reading state information...
+git is already the newest version (2.53.0).
+python is already the newest version (3.13.12-3).
+make is already the newest version (4.4.1-1).
+clang is already the newest version (21.1.8-2).
+binutils is already the newest version (2.46.0-3).
+nodejs-lts is already the newest version (24.13.0-1).
+The following additional packages will be installed:
+  libuuid
+The following NEW packages will be installed:
+  libuuid wget
+0 upgraded, 2 newly installed, 0 to remove and 72 not upgraded.
+Need to get 297 kB of archives.
+After this operation, 897 kB of additional disk space will be used.
+Get:1 https://packages-cf.termux.dev/apt/termux-main stable/main aarch64 libuuid aarch64 2.41.3 [15.4 kB]
+Get:2 https://packages-cf.termux.dev/apt/termux-main stable/main aarch64 wget aarch64 1.25.0-1 [281 kB]
+Fetched 297 kB in 2s (136 kB/s)
+Selecting previously unselected package libuuid.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 19561 files and directories currently installed.)
+Preparing to unpack .../libuuid_2.41.3_aarch64.deb ...
+Unpacking libuuid (2.41.3) ...
+Selecting previously unselected package wget.
+Preparing to unpack .../wget_1.25.0-1_aarch64.deb ...
+Unpacking wget (1.25.0-1) ...
+Setting up libuuid (2.41.3) ...
+Setting up wget (1.25.0-1) ...
+[2/4] Cloning SillyTavern...
+Cloning into 'SillyTavern'...
+fatal: No names found, cannot describe anything.
+[3/4] Installing node modules (this takes a while)...
+npm warn deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+
+> sillytavern@1.16.0 postinstall
+> node post-install.js
+
+Created default file: ./config.yaml
+Synchronized missing files: ./public/
+
+added 798 packages, and audited 799 packages in 1m
+
+132 packages are looking for funding
+  run `npm fund` for details
+
+2 vulnerabilities (1 moderate, 1 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+[4/4] Checking compiled native modules...
+ls: cannot access 'node_modules/better-sqlite3/build/Release/': No such file or directory
+ls: cannot access 'node_modules/bufferutil/build/Release/': No such file or directory
+Done! Installation finished.
+=== End of Log ===

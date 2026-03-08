@@ -1,0 +1,206 @@
+第一部分：技术实现路线横向评估
+要在安卓沙盒内完美缝合 Node.js 后端与 Web 前端，且不让小白感知到复杂的环境，目前业内有 3 条主流技术路线：
+
+路线 A：嵌入式引擎流（跨平台框架 + nodejs-mobile 插件）
+实现原理：将 Node.js 引擎直接编译为 Android 的动态链接库（libnode.so），通过 JNI 接口在 App 主进程内直接运行，上层覆盖 WebView。
+
+防绞杀能力：★★★★★（因为没有创建子进程，完美免疫安卓 12+ 的“幽灵进程杀手”）。
+
+版本迭代应对：★☆☆☆☆（致命缺陷：nodejs-mobile 官方库维护极度滞后，长期停留在旧版 Node。SillyTavern 官方高频迭代且重度依赖新版 Node API，此路线未来必将因为版本不兼容而彻底卡死，维护 C++ 编译链的成本是个无底洞）。
+
+结论：淘汰。 历史包袱过重。
+
+路线 B：魔改终端容器流（Fork Termux / PRoot 内核）
+实现原理：抽离著名开源项目 Termux 的内核，隐藏命令行 UI，用自动化 Shell 脚本在后台跑完整的 Linux 环境并拉起 Node。
+
+热更与兼容性：★★★★★（自带包管理器，支持 npm install）。
+
+小白体验与防杀：★☆☆☆☆（致命缺陷：包体动辄过百兆，首次启动解压极慢。更致命的是，Linux 容器会产生大量 Shell 子进程，100% 触发 Android 12+ 严苛的 Phantom Process Killer（幽灵进程绞杀）机制，用户切出去回个微信，后台就会被系统无情秒杀断联）。
+
+结论：淘汰。 方案太重，且无法根除后台断联问题。
+
+路线 C：原生微内核流（原生 Kotlin 宿主 + 预编译 Bionic Node 二进制子进程）
+实现原理：APK 仅作为外壳。内部打包一个专门为 Android 平台交叉编译好的 Node.js 独立可执行文件（几十MB）。首次启动时解压到私有目录，利用原生的 ProcessBuilder 以后台子进程拉起，前台原生 WebView 渲染本地端口。
+
+综合表现：在沙盒纯净度、原生 I/O 桥接、热更新机制上均能达到极高水准。防杀机制可通过 Android 前台服务（Foreground Service）完美弥补。
+
+结论：极度推荐。 兼顾最高控制力与最低维护成本。
+
+第二部分：顶尖架构师的最终推荐路线
+🏆 最终定调：坚决采用【路线 C：原生 Kotlin 壳 + 独立 Node 二进制 + 云端热更引擎】架构。
+
+为什么它是兼顾“开发可行性”与“小白体验”的最优解？
+
+“模拟器与 ROM”的彻底解耦（痛点 4 解决）：
+我们将 App 分为“外壳”和“内核”。底层的 Node 二进制文件是“GBA 模拟器”，SillyTavern 的前端+后端源码是“游戏 ROM”。SillyTavern 官方无论怎么更新，你的安卓团队一行代码都不用改。App 内置一个下载器，一键拉取最新的源码 ZIP，清空旧文件夹覆盖，重启 Node 进程，瞬间完成热更。外壳永不发版。
+
+纯净单体沙盒（痛点 1 解决）：
+所有文件解压在 /data/user/0/你的包名/files 下。不需要动态申请任何存储权限，100% 绿色静默。
+
+降维打击级的后台保活（痛点 3 解决）：
+启动 Node 的同时，Kotlin 会向系统注册一个 前台服务（Foreground Service），并在状态栏挂载一个常驻通知（如：“酒馆营业中🍻”）。这能将 App 的系统优先级拉满。同时由于只 fork 了一个单一的 node 进程（不走 bash），完美避开了 32 个幽灵进程的查杀阈值。
+
+第三部分：落地执行的“三大技术深坑”与预备方案（核心壁垒）
+按照推荐路线推进，研发团队必然会在这三个底层细节上“翻车”。请务必在 PRD 和技术评审中带上以下预备方案：
+
+💀 深坑一：WebView 与安卓系统的“文件 I/O 屏障”（头像上传必挂）
+死亡场景：小白用户在网页端点击“上传角色卡（PNG）”，系统弹出文件选择器。但在 Android 11+（分区存储）机制下，系统返回给网页的是一个 content://media/external/... 格式的虚拟沙盒 URI。而后端的 Node.js 只认识标准的绝对物理路径。这会导致文件流断裂，上传 100% 无响应。
+
+架构师预备方案（The Bridging Strategy 中转站）：
+必须在 Kotlin 层重写 WebView 的 WebChromeClient.onShowFileChooser，彻底接管上传请求。
+拿到系统返回的虚拟 URI 后，原生代码在后台静默将这张图片“流式拷贝”到 App 的私有缓存目录（cacheDir），生成一个真实的临时 .png 物理文件。最后，将这个物理文件的绝对路径回传给 WebView。完成“偷天换日”，小白享受丝滑的原生选图体验。
+
+💀 深坑二：“划掉后台”导致的僵尸进程与 JSON 数据库彻底损坏
+死亡场景：小白用户习惯性地在多任务界面把 App 向上划掉。安卓系统会极其粗暴地发送 SIGKILL 强杀 UI 主进程。如果此刻后端的 Node 正在将海量聊天记录写入 JSON，文件会被瞬间腰斩变成 0KB（坏档）。且 Node 子进程可能变成“孤儿进程”继续霸占端口，下次打开必定白屏报错 EADDRINUSE。
+
+架构师预备方案（三重保险的优雅停机）：
+
+动态端口防占用：启动前，Kotlin 用 ServerSocket(0) 探测一个随机可用空闲端口（如 8042），通过环境变量传给 Node，彻底根除端口冲突。
+
+临终遗言：在 Kotlin 的 Service.onTaskRemoved（划掉后台回调）中，阻塞销毁 1-2 秒，立即向 Node 发送一个内部 HTTP 请求（POST /api/internal/shutdown）。Node 收到后立即执行 fs.writeFileSync 强制同步落盘，随后主动退出。
+
+原子化写入（底层补丁）：在酒馆源码侧做微调，写入关键 JSON 时采用原子写入——先写到 .tmp 临时文件，写完再瞬间 rename 覆盖原文件。哪怕断电，也绝不坏档。
+
+💀 深坑三：NPM 原生依赖的交叉编译陷阱（热更翻车点）
+死亡场景：SillyTavern 的依赖树里，可能会混入需要 C++ 编译的底层包（如处理图片的 sharp 或本地数据库 sqlite3）。小白的手机里根本没有 GCC 编译环境，如果你的 App 试图在用户手机侧通过脚本去跑 npm install，会当场爆红崩溃，App 变砖。
+
+架构师预备方案（云端预构建 Payloads）：
+立下研发铁律：绝对不允许 App 在用户手机上执行任何编译或 npm install 动作。
+你需要在服务端（或 GitHub Actions）建立一条 CI/CD 流水线。每次官方更新，在云端使用 aarch64-linux-android 工具链把所有的 Node 依赖提前编译好。打包成一个即插即用、包含完整 node_modules 的纯静态 ZIP 包。客户端的热更新仅仅是极其安全的“纯文本下载 -> 解压覆盖”。
+
+给产品经理的下一步行动建议：
+拿着这份方案，你的 Android 工程师不需要再去做无头苍蝇般的试错。第一步，让他先去寻找或提取一份适配 Android aarch64 的 Bionic node 可执行二进制文件；只要这个文件能在你们的 Demo App 里通过 ProcessBuilder 成功跑起并打印出 node -v，这个项目的核心地基就打赢了 80%。祝产品早日破圈！
+
+================================================================================
+第四部分：Phase 1 实施记录 —— 核心地基已验证通过 ✅
+================================================================================
+
+执行时间：2026年3月8日
+目标设备：一加 Ace 2（Snapdragon 8+ Gen 1, arm64-v8a, Android 15）
+验证结果：全部 7 项检查通过
+
+一、Node.js 二进制获取
+
+最终采用方案：从 Termux 提取（实测获得 Node v24.13.0，比计划中的 v22 LTS 更新）
+
+操作步骤：
+1. 在手机 Termux 中执行 pkg install nodejs-lts 及所有依赖包
+2. 使用 readelf -d $(which node) 扫描出全部动态链接依赖
+3. 通过 adb pull 将 node 可执行文件 + 12 个 .so 依赖库拉取到电脑
+4. 打包进 Android 项目的 assets/node_bundle/ 目录
+
+提取的完整依赖清单（12个文件）：
+  - node（主程序，约 90MB）
+  - libc++_shared.so
+  - libcares.so.2.17.0
+  - libcrypto.so.3
+  - libicudata.so.78.2 + libicui18n.so.78.2 + libicuuc.so.78.2
+  - libnghttp3.so.9.2.0
+  - libsqlite3.so.3.52.0
+  - libssl.so.3
+  - libz.so.1.3.1
+
+运行时需创建的符号链接：
+  libz.so.1 -> libz.so.1.3.1
+  libicudata.so.78 -> libicudata.so.78.2
+  libicui18n.so.78 -> libicui18n.so.78.2
+  libicuuc.so.78 -> libicuuc.so.78.2
+  libsqlite3.so -> libsqlite3.so.3.52.0
+
+二、核心技术突破 —— Android 14+ W^X 安全机制绕过
+
+█ 遇到的安全壁垒（按时间顺序）：
+
+壁垒 1 - W^X 执行拒绝（error=13, Permission denied）：
+  Android 10+ 对 targetSdk≥29 的 App，禁止执行位于应用数据目录（filesDir）下的二进制文件。
+  直接 ProcessBuilder(nodeBin.absolutePath, ...) 会被内核拒绝。
+
+壁垒 2 - jniLibs 伪装方案的局限性：
+  尝试将 node 改名为 libnode.so 放入 jniLibs/arm64-v8a/，配合
+  extractNativeLibs=true 和 useLegacyPackaging=true。
+  结果：系统成功解压到 nativeLibraryDir 并允许执行，但动态链接器
+  找不到依赖库（CANNOT LINK EXECUTABLE: library libz.so.1 not found），
+  因为链接器命名空间隔离（Linker Namespace Isolation）阻止了从 filesDir 加载 .so。
+
+█ 最终解决方案 —— /system/bin/linker64 绝技（来自 Termux 开源智慧）：
+
+核心原理：不直接执行 node 二进制，而是执行系统自带的动态链接器 /system/bin/linker64，
+让它代为加载并执行我们的 node 文件。内核只看到受信任的系统二进制被执行，不触发 W^X。
+这是 Termux 项目 termux-exec 组件的核心机制，经过数百万用户验证。
+
+代码实现（NodeService.kt 中的关键一行）：
+  val linker = if (Build.SUPPORTED_64_BIT_ABIS.isNotEmpty())
+      "/system/bin/linker64" else "/system/bin/linker"
+  val pb = ProcessBuilder(linker, nodeBin.absolutePath, serverScript.absolutePath)
+  pb.environment()["LD_LIBRARY_PATH"] = bundleDir.absolutePath
+
+此方案下，node 二进制和所有 .so 依赖照常解压到 filesDir/node_bundle/，不需要
+任何 jniLibs 伪装、不需要 extractNativeLibs、不需要 useLegacyPackaging。
+LD_LIBRARY_PATH 在此模式下有效，因为 linker64 会尊重它。
+
+三、Android 项目结构与配置
+
+项目路径：ST_launcher/android/
+包名：com.wlav.stlauncher
+minSdk=26 (Android 8.0) | targetSdk=35 (Android 15)
+Kotlin 2.1.0 | AGP 8.7.3 | Gradle 8.11.1
+
+文件结构：
+  app/src/main/
+  ├── java/com/wlav/stlauncher/
+  │   ├── MainActivity.kt        # WebView 容器 + 广播接收 + 轮询回退
+  │   └── NodeService.kt         # 前台服务，管理 Node 进程生命周期
+  ├── assets/node_bundle/        # node 二进制 + 12 个 .so 依赖
+  ├── res/
+  │   ├── layout/activity_main.xml
+  │   └── xml/network_security_config.xml  # 允许 localhost 明文 HTTP
+  └── AndroidManifest.xml
+
+AndroidManifest.xml 关键配置：
+  - 权限：FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, INTERNET, POST_NOTIFICATIONS
+  - NetworkSecurityConfig：允许 127.0.0.1 和 localhost 的明文 HTTP 流量
+  - Service：foregroundServiceType="specialUse"
+
+build.gradle.kts 关键配置：
+  - androidResources { noCompress += listOf("so", "node") }  # 防止 AAPT 压缩二进制
+
+四、已解决的其他技术问题
+
+1. ERR_CLEARTEXT_NOT_PERMITTED：
+   Android 默认禁止明文 HTTP。通过 network_security_config.xml 仅允许 localhost。
+
+2. 广播接收时序竞态：
+   BroadcastReceiver 可能错过 NodeService 发送的端口广播。
+   解决：NodeService 将端口写入文件 filesDir/node_port，
+   MainActivity 有 polling 回退机制（每 500ms 检查一次，最多 30 秒）。
+
+3. 通知栏不显示：
+   原因一：Android 13+ 需要 POST_NOTIFICATIONS 运行时权限。
+   原因二：IMPORTANCE_LOW 在 ColorOS（一加系统）上不显示状态栏图标。
+   解决：请求运行时权限 + 提升通知渠道为 IMPORTANCE_DEFAULT + setSound(null, null)。
+
+4. 通知渠道缓存：
+   Android 会跨安装缓存通知渠道设置。修改 importance 不会对已存在的渠道生效。
+   解决：更换渠道 ID（node_service_channel -> node_service_channel_v2）并卸载重装。
+
+五、Phase 1 验证清单
+
+  [✅] V1 - Termux 内 node -v + readelf 扫描依赖        → Node v24.13.0，12 个依赖库
+  [✅] V2 - 脱离 Termux 在 adb shell 独立运行 node -v   → 输出版本号
+  [✅] V3 - APK 内 ProcessBuilder 启动 Node 进程         → 通过 linker64 成功启动
+  [✅] V4 - Node HTTP 服务 + WebView 加载                → 显示 "Hello from Node.js on Android!"
+  [✅] 状态栏常驻通知                                     → "酒馆营业中 🍻 (端口 xxxxx)"
+  [✅] 切出 App 1 分钟后切回                              → 页面正常，服务未被杀
+  [✅] 划掉 App 后 ps 检查                                → 零残留进程
+
+六、Phase 2 待办事项（集成 SillyTavern 本体）
+
+1. 获取 SillyTavern 源码并打包进 assets 或首次运行时下载
+2. 在 NodeService 中改为启动 SillyTavern 的 server.js 入口
+3. 处理 npm 原生依赖（需预编译，严禁在手机端 npm install）
+4. 实现 WebChromeClient.onShowFileChooser 文件上传桥接
+5. 实现优雅停机（Node 端 shutdown API + 原子化 JSON 写入）
+6. 热更新机制（下载最新源码 ZIP 覆盖）
+7. App 图标、启动页等 UI 美化
+
+================================================================================

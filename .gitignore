@@ -1,0 +1,33 @@
+# Android Build
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild
+.cxx
+*.apk
+*.aar
+
+# Node.js
+**/node_modules/
+**/SillyTavern/
+!SillyTavern/src/endpoints/extensions.js
+
+# Project specific
+*.tar
+android/app/src/main/assets/sillytavern.tar
+android/app/src/main/assets/git_bundle.tar
+android/app/src/main/assets/node_bundle/node
+android/app/src/main/assets/node_bundle/ffmpeg
+android/app/src/main/assets/node_bundle/*.so*
+*.sh
+!android/app/src/main/assets/node_bundle/android_git_patch.js
+
+# Temporary files
+/st_patch_work/
+/tmp/
+node_log.txt
+node_log2.txt
+error.txt

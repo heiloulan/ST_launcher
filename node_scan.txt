@@ -1,0 +1,31 @@
+=== Node Version ===
+v24.13.0
+=== Node Path ===
+/data/data/com.termux/files/usr/bin/node
+=== Direct Dependencies (NEEDED) ===
+ 0x0000000000000001 (NEEDED)             Shared library: [libz.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libcares.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libsqlite3.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libcrypto.so.3]
+ 0x0000000000000001 (NEEDED)             Shared library: [libssl.so.3]
+ 0x0000000000000001 (NEEDED)             Shared library: [libicui18n.so.78]
+ 0x0000000000000001 (NEEDED)             Shared library: [libicuuc.so.78]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libdl.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc++_shared.so]
+=== Listing matching .so files in Termux lib ===
+FOUND: libz.so.1 -> /data/data/com.termux/files/usr/lib/libz.so.1.3.1
+FOUND: libcares.so -> /data/data/com.termux/files/usr/lib/libcares.so
+FOUND: libsqlite3.so -> /data/data/com.termux/files/usr/lib/libsqlite3.so.3.52.0
+FOUND: libcrypto.so.3 -> /data/data/com.termux/files/usr/lib/libcrypto.so.3
+FOUND: libssl.so.3 -> /data/data/com.termux/files/usr/lib/libssl.so.3
+FOUND: libicui18n.so.78 -> /data/data/com.termux/files/usr/lib/libicui18n.so.78.2
+FOUND: libicuuc.so.78 -> /data/data/com.termux/files/usr/lib/libicuuc.so.78.2
+SYSTEM: libc.so (provided by Android)
+SYSTEM: libm.so (provided by Android)
+SYSTEM: libdl.so (provided by Android)
+FOUND: libc++_shared.so -> /data/data/com.termux/files/usr/lib/libc++_shared.so
+=== Node binary size ===
+-rwx------. 1 u0_a513 u0_a513 43M Jan 30 12:15 /data/data/com.termux/files/usr/bin/node
+=== DONE ===

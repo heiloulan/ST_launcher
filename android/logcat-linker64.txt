@@ -1,0 +1,14 @@
+--------- beginning of main
+03-08 14:43:57.888 22838 22922 I NodeService: Extracting 12 files from assets/node_bundle
+03-08 14:43:58.180 22838 22922 D NodeService: Symlink: libz.so.1 -> libz.so.1.3.1
+03-08 14:43:58.180 22838 22922 D NodeService: Symlink: libicudata.so.78 -> libicudata.so.78.2
+03-08 14:43:58.180 22838 22922 D NodeService: Symlink: libicui18n.so.78 -> libicui18n.so.78.2
+03-08 14:43:58.180 22838 22922 D NodeService: Symlink: libicuuc.so.78 -> libicuuc.so.78.2
+03-08 14:43:58.180 22838 22922 D NodeService: Symlink: libsqlite3.so -> libsqlite3.so.3.52.0
+03-08 14:43:58.181 22838 22922 I NodeService: Node bundle extraction complete
+03-08 14:43:58.181 22838 22922 I NodeService: Node bundle extracted to: /data/user/0/com.wlav.stlauncher/files/node_bundle
+03-08 14:43:58.182 22838 22922 I NodeService: Using port: 39195
+03-08 14:43:58.189 22838 22922 I NodeService: Using linker: /system/bin/linker64
+03-08 14:43:58.189 22838 22922 I NodeService: Node binary: /data/user/0/com.wlav.stlauncher/files/node_bundle/node (exists=true)
+03-08 14:43:58.192 22838 22922 I NodeService: Node process started, PID: Process[pid=22925, hasExited=false]
+03-08 14:43:58.346 22838 22922 I NodeService: Node: SERVER_READY:39195

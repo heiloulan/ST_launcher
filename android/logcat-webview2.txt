@@ -1,0 +1,12 @@
+--------- beginning of main
+03-08 14:49:26.197 23652 23739 I NodeService: Node bundle already extracted (version v24.13.0)
+03-08 14:49:26.197 23652 23739 I NodeService: Node bundle extracted to: /data/user/0/com.wlav.stlauncher/files/node_bundle
+03-08 14:49:26.200 23652 23739 I NodeService: Using port: 41289
+03-08 14:49:26.221 23652 23739 I NodeService: Using linker: /system/bin/linker64
+03-08 14:49:26.221 23652 23739 I NodeService: Node binary: /data/user/0/com.wlav.stlauncher/files/node_bundle/node (exists=true)
+03-08 14:49:26.231 23652 23739 I NodeService: Node process started, PID: Process[pid=23740, hasExited=false]
+03-08 14:49:26.389 23652 23739 I NodeService: Node: SERVER_READY:41289
+03-08 14:49:26.391 23652 23652 I MainActivity: Received port via broadcast: 41289
+03-08 14:49:26.391 23652 23652 I MainActivity: Loading WebView: http://127.0.0.1:41289
+03-08 14:49:26.410 23652 23652 E MainActivity: WebView error: net::ERR_CLEARTEXT_NOT_PERMITTED
+03-08 14:49:26.591 23652 23729 D MainActivity: Poll attempt 1: Cleartext HTTP traffic to 127.0.0.1 not permitted

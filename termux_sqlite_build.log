@@ -1,0 +1,125 @@
+=== Force Building better-sqlite3 ===
+Sun Mar  8 16:04:39 CST 2026
+Cleaning npm cache...
+npm warn using --force Recommended protections disabled.
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+Installing better-sqlite3 from source...
+npm verbose cli /data/data/com.termux/files/usr/bin/node /data/data/com.termux/files/usr/bin/npm
+npm info using npm@11.11.0
+npm info using node@v24.13.0
+npm verbose title npm install better-sqlite3
+npm verbose argv "install" "better-sqlite3" "--build-from-source" "--loglevel" "verbose"
+npm verbose logfile logs-max:10 dir:/data/data/com.termux/files/home/.npm/_logs/2026-03-08T08_04_40_467Z-
+npm verbose logfile /data/data/com.termux/files/home/.npm/_logs/2026-03-08T08_04_40_467Z-debug-0.log
+npm warn Unknown cli config "--build-from-source". This will stop working in the next major version of npm.
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm http fetch GET 200 https://registry.npmjs.org/better-sqlite3 2520ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/bindings 510ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/prebuild-install 1668ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/file-uri-to-path 209ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/mkdirp-classic 203ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/rc 546ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/tunnel-agent 756ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/expand-template 362ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/simple-get 900ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/github-from-package 195ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/napi-build-utils 513ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/detect-libc 1063ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/tar-fs 1066ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/node-abi 1402ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/simple-concat 286ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/tar-stream 429ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/chownr 447ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/deep-extend 450ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/ini 1230ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/strip-json-comments 1385ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/fs-constants 301ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/bl 617ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/readable-stream 635ms (cache miss)
+npm http cache https://registry.npmjs.org/readable-stream 13ms (cache hit)
+npm http fetch GET 200 https://registry.npmjs.org/buffer 1203ms (cache miss)
+npm http cache fs-constants@https://registry.npmjs.org/fs-constants/-/fs-constants-1.0.0.tgz 0ms (cache hit)
+npm http cache bl@https://registry.npmjs.org/bl/-/bl-4.1.0.tgz 0ms (cache hit)
+npm http cache simple-concat@https://registry.npmjs.org/simple-concat/-/simple-concat-1.0.1.tgz 0ms (cache hit)
+npm http cache ini@https://registry.npmjs.org/ini/-/ini-1.3.8.tgz 0ms (cache hit)
+npm http cache deep-extend@https://registry.npmjs.org/deep-extend/-/deep-extend-0.6.0.tgz 0ms (cache hit)
+npm http cache tar-fs@https://registry.npmjs.org/tar-fs/-/tar-fs-2.1.4.tgz 0ms (cache hit)
+npm http cache simple-get@https://registry.npmjs.org/simple-get/-/simple-get-4.0.1.tgz 0ms (cache hit)
+npm http cache node-abi@https://registry.npmjs.org/node-abi/-/node-abi-3.87.0.tgz 0ms (cache hit)
+npm http cache napi-build-utils@https://registry.npmjs.org/napi-build-utils/-/napi-build-utils-2.0.0.tgz 0ms (cache hit)
+npm http cache chownr@https://registry.npmjs.org/chownr/-/chownr-1.1.4.tgz 0ms (cache hit)
+npm http cache rc@https://registry.npmjs.org/rc/-/rc-1.2.8.tgz 0ms (cache hit)
+npm http cache expand-template@https://registry.npmjs.org/expand-template/-/expand-template-2.0.3.tgz 0ms (cache hit)
+npm http cache mkdirp-classic@https://registry.npmjs.org/mkdirp-classic/-/mkdirp-classic-0.5.3.tgz 0ms (cache hit)
+npm http cache detect-libc@https://registry.npmjs.org/detect-libc/-/detect-libc-2.1.2.tgz 0ms (cache hit)
+npm http cache github-from-package@https://registry.npmjs.org/github-from-package/-/github-from-package-0.0.0.tgz 0ms (cache hit)
+npm http cache file-uri-to-path@https://registry.npmjs.org/file-uri-to-path/-/file-uri-to-path-1.0.0.tgz 0ms (cache hit)
+npm http cache better-sqlite3@https://registry.npmjs.org/better-sqlite3/-/better-sqlite3-12.6.2.tgz 0ms (cache hit)
+npm http cache readable-stream@https://registry.npmjs.org/readable-stream/-/readable-stream-3.6.2.tgz 0ms (cache hit)
+npm http cache readable-stream@https://registry.npmjs.org/readable-stream/-/readable-stream-3.6.2.tgz 0ms (cache hit)
+npm http cache tar-stream@https://registry.npmjs.org/tar-stream/-/tar-stream-2.2.0.tgz 0ms (cache hit)
+npm http cache prebuild-install@https://registry.npmjs.org/prebuild-install/-/prebuild-install-7.1.3.tgz 0ms (cache hit)
+npm http cache tunnel-agent@https://registry.npmjs.org/tunnel-agent/-/tunnel-agent-0.6.0.tgz 0ms (cache hit)
+npm http cache bindings@https://registry.npmjs.org/bindings/-/bindings-1.5.0.tgz 0ms (cache hit)
+npm http cache strip-json-comments@https://registry.npmjs.org/strip-json-comments/-/strip-json-comments-2.0.1.tgz 1ms (cache hit)
+npm http cache buffer@https://registry.npmjs.org/buffer/-/buffer-5.7.1.tgz 0ms (cache hit)
+npm http fetch GET 200 https://registry.npmjs.org/fs-constants/-/fs-constants-1.0.0.tgz 258ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/deep-extend/-/deep-extend-0.6.0.tgz 254ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/simple-concat/-/simple-concat-1.0.1.tgz 256ms (cache miss)
+npm http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 353ms
+npm http fetch GET 200 https://registry.npmjs.org/file-uri-to-path/-/file-uri-to-path-1.0.0.tgz 467ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/ini/-/ini-1.3.8.tgz 2859ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/bl/-/bl-4.1.0.tgz 2864ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/prebuild-install/-/prebuild-install-7.1.3.tgz 4130ms (cache miss)
+npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+npm http fetch GET 200 https://registry.npmjs.org/tar-stream/-/tar-stream-2.2.0.tgz 4133ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/rc/-/rc-1.2.8.tgz 4214ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/simple-get/-/simple-get-4.0.1.tgz 4221ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/bindings/-/bindings-1.5.0.tgz 4523ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/github-from-package/-/github-from-package-0.0.0.tgz 4557ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/detect-libc/-/detect-libc-2.1.2.tgz 4564ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/tar-fs/-/tar-fs-2.1.4.tgz 4588ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/readable-stream/-/readable-stream-3.6.2.tgz 4581ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/tunnel-agent/-/tunnel-agent-0.6.0.tgz 4683ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/mkdirp-classic/-/mkdirp-classic-0.5.3.tgz 4690ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/readable-stream/-/readable-stream-3.6.2.tgz 4760ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/strip-json-comments/-/strip-json-comments-2.0.1.tgz 4758ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/buffer/-/buffer-5.7.1.tgz 4762ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/better-sqlite3/-/better-sqlite3-12.6.2.tgz 4865ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/napi-build-utils/-/napi-build-utils-2.0.0.tgz 4897ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/node-abi/-/node-abi-3.87.0.tgz 5002ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/chownr/-/chownr-1.1.4.tgz 5049ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/multer 4838ms (cache miss)
+npm http fetch GET 200 https://registry.npmjs.org/expand-template/-/expand-template-2.0.3.tgz 5684ms (cache miss)
+npm info run better-sqlite3@12.6.2 install node_modules/better-sqlite3 prebuild-install || node-gyp rebuild --release
+npm http fetch GET 200 https://registry.npmjs.org/dompurify 5424ms (cache miss)
+npm info run better-sqlite3@12.6.2 install { code: 0, signal: null }
+
+added 25 packages, and audited 824 packages in 1m
+
+134 packages are looking for funding
+  run `npm fund` for details
+
+2 vulnerabilities (1 moderate, 1 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+npm verbose cwd /data/data/com.termux/files/home/SillyTavern
+npm verbose os Linux 5.10.209-android12-9-o-g0a04ff961c85
+npm verbose node v24.13.0
+npm verbose npm  v11.11.0
+npm verbose exit 0
+npm info ok
+SUCCESS: better-sqlite3 built!
+total 4598
+drwx------. 5 u0_a513 u0_a513    3440 Mar  8 16:06 .
+drwx------. 4 u0_a513 u0_a513    3440 Mar  8 16:06 ..
+drwx------. 3 u0_a513 u0_a513    3440 Mar  8 16:05 .deps
+-rwx------. 1 u0_a513 u0_a513 2070056 Mar  8 16:06 better_sqlite3.node
+drwx------. 3 u0_a513 u0_a513    3440 Mar  8 16:05 obj
+drwx------. 6 u0_a513 u0_a513    3440 Mar  8 16:06 obj.target
+-rw-------. 1 u0_a513 u0_a513 2605366 Mar  8 16:05 sqlite3.a
+-rwx------. 1 u0_a513 u0_a513    5816 Mar  8 16:06 test_extension.node
+=== End of Log ===

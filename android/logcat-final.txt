@@ -1,0 +1,10 @@
+--------- beginning of main
+03-08 14:50:41.472 24050 24232 I NodeService: Node bundle already extracted (version v24.13.0)
+03-08 14:50:41.472 24050 24232 I NodeService: Node bundle extracted to: /data/user/0/com.wlav.stlauncher/files/node_bundle
+03-08 14:50:41.473 24050 24232 I NodeService: Using port: 38065
+03-08 14:50:41.492 24050 24232 I NodeService: Using linker: /system/bin/linker64
+03-08 14:50:41.492 24050 24232 I NodeService: Node binary: /data/user/0/com.wlav.stlauncher/files/node_bundle/node (exists=true)
+03-08 14:50:41.499 24050 24232 I NodeService: Node process started, PID: Process[pid=24234, hasExited=false]
+03-08 14:50:41.692 24050 24232 I NodeService: Node: SERVER_READY:38065
+03-08 14:50:41.695 24050 24050 I MainActivity: Received port via broadcast: 38065
+03-08 14:50:41.695 24050 24050 I MainActivity: Loading WebView: http://127.0.0.1:38065

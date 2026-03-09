@@ -78,12 +78,17 @@ class NodeService : Service() {
                 nodeProcess = pb.start()
                 Log.i(TAG, "Node process started, PID: ${nodeProcess?.toString()}")
 
-                // 5. Read stdout until we see Server listening
+                // 5. Read stdout and write to log file
+                val logFile = File(filesDir, "server.log")
+                logFile.writeText("") // Clear previous log
+                val logWriter = logFile.bufferedWriter()
                 val reader = BufferedReader(InputStreamReader(nodeProcess!!.inputStream))
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     val currentLine = line ?: ""
                     Log.i(TAG, "Node: $currentLine")
+                    logWriter.appendLine(currentLine)
+                    logWriter.flush()
                     if (currentLine.contains("is listening on") || currentLine.contains("listening on port") || currentLine.contains("SERVER_READY:")) {
                         // Write port to file for polling fallback
                         File(filesDir, "node_port").writeText(port.toString())
@@ -107,9 +112,13 @@ class NodeService : Service() {
                     try {
                         while (reader.readLine().also { line = it } != null) {
                             Log.d(TAG, "Node: $line")
+                            logWriter.appendLine(line)
+                            logWriter.flush()
                         }
                     } catch (e: IOException) {
                         Log.i(TAG, "Node process stream closed")
+                    } finally {
+                        try { logWriter.close() } catch (_: Exception) {}
                     }
                 }.start()
 
@@ -138,7 +147,7 @@ class NodeService : Service() {
         val stBaseDir = File(filesDir, "sillytavern")
         val stDir = File(stBaseDir, "SillyTavern")
         val versionFile = File(stBaseDir, ".version")
-        val currentVersion = "v1.16.0-isogit2"
+        val currentVersion = "v1.16.0-isogit10"
 
         if (stBaseDir.exists() && versionFile.exists() && versionFile.readText() == currentVersion) {
             Log.i(TAG, "SillyTavern bundle already extracted (version $currentVersion)")

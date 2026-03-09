@@ -1,0 +1,315 @@
+Node version: v24.13.0. Running in production environment. Server directory: /data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern
+Using config path: ./config.yaml
+Adding missing config values to config.yaml: [
+  'browserLaunch.browser',
+  'browserLaunch.hostname',
+  'browserLaunch.port',
+  'browserLaunch.avoidLocalhost',
+  'dataRoot',
+  'listenAddress.ipv4',
+  'listenAddress.ipv6',
+  'protocol.ipv4',
+  'protocol.ipv6',
+  'dnsPreferIPv6',
+  'heartbeatInterval',
+  'ssl.enabled',
+  'ssl.certPath',
+  'ssl.keyPath',
+  'ssl.keyPassphrase',
+  'whitelistMode',
+  'enableForwardedWhitelist',
+  'whitelist',
+  'whitelistDockerHosts',
+  'basicAuthMode',
+  'basicAuthUser.username',
+  'basicAuthUser.password',
+  'enableCorsProxy',
+  'cors.enabled',
+  'cors.origin',
+  'cors.methods',
+  'cors.allowedHeaders',
+  'cors.exposedHeaders',
+  'cors.credentials',
+  'requestProxy.enabled',
+  'requestProxy.url',
+  'requestProxy.bypass',
+  'enableUserAccounts',
+  'enableDiscreetLogin',
+  'perUserBasicAuth',
+  'sso.autheliaAuth',
+  'sso.authentikAuth',
+  'hostWhitelist.enabled',
+  'hostWhitelist.scan',
+  'hostWhitelist.hosts',
+  'sessionTimeout',
+  'disableCsrfProtection',
+  'logging.enableAccessLog',
+  'logging.minLogLevel',
+  'rateLimiting.preferRealIpHeader',
+  'backups.common.numberOfBackups',
+  'backups.chat.enabled',
+  'backups.chat.checkIntegrity',
+  'backups.chat.maxTotalBackups',
+  'backups.chat.throttleInterval',
+  'thumbnails.enabled',
+  'thumbnails.format',
+  'thumbnails.quality',
+  'thumbnails.dimensions.bg',
+  'thumbnails.dimensions.avatar',
+  'thumbnails.dimensions.persona',
+  'performance.lazyLoadCharacters',
+  'performance.memoryCacheCapacity',
+  'performance.useDiskCache',
+  'cacheBuster.enabled',
+  'cacheBuster.userAgentPattern',
+  'allowKeysExposure',
+  'skipContentCheck',
+  'whitelistImportDomains',
+  'requestOverrides',
+  'extensions.enabled',
+  'extensions.autoUpdate',
+  'extensions.models.autoDownload',
+  'extensions.models.classification',
+  'extensions.models.captioning',
+  'extensions.models.embedding',
+  'extensions.models.speechToText',
+  'extensions.models.textToSpeech',
+  'enableDownloadableTokenizers',
+  'promptPlaceholder',
+  'openai.randomizeUserId',
+  'openai.captionSystemPrompt',
+  'deepl.formality',
+  'mistral.enablePrefix',
+  'ollama.keepAlive',
+  'ollama.batchSize',
+  'claude.enableSystemPromptCache',
+  'claude.cachingAtDepth',
+  'claude.extendedTTL',
+  'gemini.apiVersion',
+  'gemini.thoughtSignatures',
+  'gemini.enableSystemPromptCache',
+  'gemini.image.personGeneration',
+  'enableServerPlugins',
+  'enableServerPluginsAutoUpdate'
+]
+Migrating config values in config.yaml: [
+  {
+    oldKey: 'autorun',
+    newKey: 'browserLaunch.enabled',
+    oldValue: false,
+    newValue: false
+  }
+]
+Cookie secret is missing from data root. Generating a new one...
+Using data root: ./data
+Preferring IPv4 for DNS resolution
+
+SillyTavern 1.16.0
+
+Content file settings.json copied to data/default-user
+Content file themes/Dark Lite.json copied to data/default-user/themes
+Content file themes/Cappuccino.json copied to data/default-user/themes
+Content file themes/Celestial Macaron.json copied to data/default-user/themes
+Content file themes/Dark V 1.0.json copied to data/default-user/themes
+Content file themes/Azure.json copied to data/default-user/themes
+Content file backgrounds/__transparent.png copied to data/default-user/backgrounds
+Content file backgrounds/_black.jpg copied to data/default-user/backgrounds
+Content file backgrounds/_white.jpg copied to data/default-user/backgrounds
+Content file backgrounds/bedroom clean.jpg copied to data/default-user/backgrounds
+Content file backgrounds/bedroom cyberpunk.jpg copied to data/default-user/backgrounds
+Content file backgrounds/bedroom red.jpg copied to data/default-user/backgrounds
+Content file backgrounds/bedroom tatami.jpg copied to data/default-user/backgrounds
+Content file backgrounds/cityscape medieval market.jpg copied to data/default-user/backgrounds
+Content file backgrounds/cityscape medieval night.jpg copied to data/default-user/backgrounds
+Content file backgrounds/cityscape postapoc.jpg copied to data/default-user/backgrounds
+Content file backgrounds/forest treehouse fireworks air baloons (by kallmeflocc).jpg copied to data/default-user/backgrounds
+Content file backgrounds/japan classroom side.jpg copied to data/default-user/backgrounds
+Content file backgrounds/japan classroom.jpg copied to data/default-user/backgrounds
+Content file backgrounds/japan path cherry blossom.jpg copied to data/default-user/backgrounds
+Content file backgrounds/japan university.jpg copied to data/default-user/backgrounds
+Content file backgrounds/landscape autumn great tree.jpg copied to data/default-user/backgrounds
+Content file backgrounds/landscape beach day.png copied to data/default-user/backgrounds
+Content file backgrounds/landscape beach night.jpg copied to data/default-user/backgrounds
+Content file backgrounds/landscape mountain lake.jpg copied to data/default-user/backgrounds
+Content file backgrounds/landscape postapoc.jpg copied to data/default-user/backgrounds
+Content file backgrounds/landscape winter lake house.jpg copied to data/default-user/backgrounds
+Content file backgrounds/royal.jpg copied to data/default-user/backgrounds
+Content file backgrounds/tavern day.jpg copied to data/default-user/backgrounds
+Content file default_Seraphina.png copied to data/default-user/characters
+Content file Seraphina copied to data/default-user/characters
+Content file Eldoria.json copied to data/default-user/worlds
+Content file user-default.png copied to data/default-user/User Avatars
+Content file Default_Comfy_Workflow.json copied to data/default-user/user/workflows
+Content file Char_Avatar_Comfy_Workflow.json copied to data/default-user/user/workflows
+Content file presets/kobold/Deterministic.json copied to data/default-user/KoboldAI Settings
+Content file presets/kobold/Neutral.json copied to data/default-user/KoboldAI Settings
+Content file presets/kobold/RecoveredRuins.json copied to data/default-user/KoboldAI Settings
+Content file presets/kobold/Universal-Creative.json copied to data/default-user/KoboldAI Settings
+Content file presets/kobold/Universal-Light.json copied to data/default-user/KoboldAI Settings
+Content file presets/kobold/Universal-Super-Creative.json copied to data/default-user/KoboldAI Settings
+Content file presets/novel/Asper-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Blended-Coffee-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Blook-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Carefree-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/CosmicCube-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Edgewise-Clio.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Fresh-Coffee-Clio.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Fresh-Coffee-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Green-Active-Writer-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Keelback-Clio.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Long-Press-Clio.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Pilotfish-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Pro_Writer-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Stelenes-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Talker-Chat-Clio.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Tea_Time-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Tesseract-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Vingt-Un-Clio.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Writers-Daemon-Kayra.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Erato-Dragonfruit.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Erato-Golden Arrow.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Erato-Shosetsu.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Erato-Wilder.json copied to data/default-user/NovelAI Settings
+Content file presets/novel/Erato-Zany Scribe.json copied to data/default-user/NovelAI Settings
+Content file presets/textgen/Default.json copied to data/default-user/TextGen Settings
+Content file presets/textgen/Deterministic.json copied to data/default-user/TextGen Settings
+Content file presets/textgen/Neutral.json copied to data/default-user/TextGen Settings
+Content file presets/textgen/Universal-Creative.json copied to data/default-user/TextGen Settings
+Content file presets/textgen/Universal-Light.json copied to data/default-user/TextGen Settings
+Content file presets/textgen/Universal-Super-Creative.json copied to data/default-user/TextGen Settings
+Content file presets/openai/Default.json copied to data/default-user/OpenAI Settings
+Content file presets/context/Adventure.json copied to data/default-user/context
+Content file presets/context/Alpaca-Single-Turn.json copied to data/default-user/context
+Content file presets/context/Alpaca.json copied to data/default-user/context
+Content file presets/context/ChatML.json copied to data/default-user/context
+Content file presets/context/Default.json copied to data/default-user/context
+Content file presets/context/Libra-32B.json copied to data/default-user/context
+Content file presets/context/Lightning 1.1.json copied to data/default-user/context
+Content file presets/context/Llama 2 Chat.json copied to data/default-user/context
+Content file presets/context/Minimalist.json copied to data/default-user/context
+Content file presets/context/NovelAI.json copied to data/default-user/context
+Content file presets/context/OldDefault.json copied to data/default-user/context
+Content file presets/context/Metharme.json copied to data/default-user/context
+Content file presets/context/Story.json copied to data/default-user/context
+Content file presets/context/Synthia.json copied to data/default-user/context
+Content file presets/context/simple-proxy-for-tavern.json copied to data/default-user/context
+Content file presets/context/Command R.json copied to data/default-user/context
+Content file presets/context/Llama 3 Instruct.json copied to data/default-user/context
+Content file presets/context/Llama 4 Instruct.json copied to data/default-user/context
+Content file presets/context/Phi.json copied to data/default-user/context
+Content file presets/instruct/Adventure.json copied to data/default-user/instruct
+Content file presets/instruct/Alpaca-Single-Turn.json copied to data/default-user/instruct
+Content file presets/instruct/Alpaca.json copied to data/default-user/instruct
+Content file presets/instruct/ChatML.json copied to data/default-user/instruct
+Content file presets/instruct/Koala.json copied to data/default-user/instruct
+Content file presets/instruct/Libra-32B.json copied to data/default-user/instruct
+Content file presets/instruct/Lightning 1.1.json copied to data/default-user/instruct
+Content file presets/instruct/Llama 2 Chat.json copied to data/default-user/instruct
+Content file presets/instruct/Metharme.json copied to data/default-user/instruct
+Content file presets/instruct/OpenOrca-OpenChat.json copied to data/default-user/instruct
+Content file presets/instruct/Story.json copied to data/default-user/instruct
+Content file presets/instruct/Synthia.json copied to data/default-user/instruct
+Content file presets/instruct/Tulu.json copied to data/default-user/instruct
+Content file presets/context/Tulu.json copied to data/default-user/context
+Content file presets/instruct/Vicuna 1.0.json copied to data/default-user/instruct
+Content file presets/instruct/Vicuna 1.1.json copied to data/default-user/instruct
+Content file presets/instruct/WizardLM-13B.json copied to data/default-user/instruct
+Content file presets/instruct/WizardLM.json copied to data/default-user/instruct
+Content file presets/instruct/simple-proxy-for-tavern.json copied to data/default-user/instruct
+Content file presets/instruct/Command R.json copied to data/default-user/instruct
+Content file presets/instruct/Llama 3 Instruct.json copied to data/default-user/instruct
+Content file presets/instruct/Llama 4 Instruct.json copied to data/default-user/instruct
+Content file presets/instruct/Phi.json copied to data/default-user/instruct
+Content file presets/moving-ui/Default.json copied to data/default-user/movingUI
+Content file presets/quick-replies/Default.json copied to data/default-user/QuickReplies
+Content file presets/instruct/Llama-3-Instruct-Names.json copied to data/default-user/instruct
+Content file presets/instruct/ChatML-Names.json copied to data/default-user/instruct
+Content file presets/instruct/KoboldAI.json copied to data/default-user/instruct
+Content file presets/context/Llama-3-Instruct-Names.json copied to data/default-user/context
+Content file presets/context/ChatML-Names.json copied to data/default-user/context
+Content file presets/context/Gemma 2.json copied to data/default-user/context
+Content file presets/instruct/Gemma 2.json copied to data/default-user/instruct
+Content file presets/sysprompt/Actor.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Assistant - Expert.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Assistant - Simple.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Chain of Thought.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Roleplay - Detailed.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Roleplay - Immersive.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Roleplay - Simple.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Text Adventure.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Writer - Creative.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Writer - Realistic.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Blank.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Neutral - Chat.json copied to data/default-user/sysprompt
+Content file presets/sysprompt/Lightning 1.1.json copied to data/default-user/sysprompt
+Content file presets/instruct/Mistral V1.json copied to data/default-user/instruct
+Content file presets/context/Mistral V1.json copied to data/default-user/context
+Content file presets/instruct/Mistral V2 & V3.json copied to data/default-user/instruct
+Content file presets/context/Mistral V2 & V3.json copied to data/default-user/context
+Content file presets/instruct/Mistral V3-Tekken.json copied to data/default-user/instruct
+Content file presets/context/Mistral V3-Tekken.json copied to data/default-user/context
+Content file presets/instruct/Mistral V7.json copied to data/default-user/instruct
+Content file presets/context/Mistral V7.json copied to data/default-user/context
+Content file presets/instruct/DeepSeek-V2.5.json copied to data/default-user/instruct
+Content file presets/context/DeepSeek-V2.5.json copied to data/default-user/context
+Content file presets/instruct/GLM-4.json copied to data/default-user/instruct
+Content file presets/context/GLM-4.json copied to data/default-user/context
+Content file presets/reasoning/DeepSeek.json copied to data/default-user/reasoning
+Content file presets/reasoning/Blank.json copied to data/default-user/reasoning
+Content file presets/instruct/Dots1.json copied to data/default-user/instruct
+Content file presets/context/Dots1.json copied to data/default-user/context
+Content file presets/context/Mistral V7-Tekken.json copied to data/default-user/context
+Content file presets/instruct/Mistral V7-Tekken.json copied to data/default-user/instruct
+Content file presets/instruct/Moonshot AI.json copied to data/default-user/instruct
+Content file presets/context/Moonshot AI.json copied to data/default-user/context
+Content file presets/context/OpenAI Harmony.json copied to data/default-user/context
+Content file presets/instruct/OpenAI Harmony.json copied to data/default-user/instruct
+Content file presets/instruct/OpenAI Harmony (Thinking).json copied to data/default-user/instruct
+Content file presets/reasoning/OpenAI Harmony.json copied to data/default-user/reasoning
+
+If you don't want to receive content updates in the future, set skipContentCheck to true in the config.yaml file.
+
+Collecting and creating stats for user: default-user
+[ImageMetadata] Generated metadata for 23 new images in backgrounds
+
+Compiling frontend libraries...
+webpack 5.105.3 compiled [1m[32msuccessfully[39m[22m in 14414 ms
+
+]2;SillyTavern WebServer\SillyTavern is listening on IPv4: 127.0.0.1:40097
+
+==================================================
+
+Go to: http://127.0.0.1:40097/ to open SillyTavern
+
+==================================================
+
+Extensions available for default-user [
+  { type: 'system', name: 'assets' },
+  { type: 'system', name: 'attachments' },
+  { type: 'system', name: 'caption' },
+  { type: 'system', name: 'connection-manager' },
+  { type: 'system', name: 'expressions' },
+  { type: 'system', name: 'gallery' },
+  { type: 'system', name: 'memory' },
+  { type: 'system', name: 'quick-reply' },
+  { type: 'system', name: 'regex' },
+  { type: 'system', name: 'stable-diffusion' },
+  { type: 'system', name: 'token-counter' },
+  { type: 'system', name: 'translate' },
+  { type: 'system', name: 'tts' },
+  { type: 'system', name: 'vectors' },
+  { type: 'global', name: 'third-party/JS-Slash-Runner' },
+  { type: 'global', name: 'third-party/ST-Prompt-Template' },
+  { type: 'global', name: 'third-party/后台功能项' }
+]
+MulterError: Unexpected field
+    at wrappedFileFilter (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/multer/index.js:41:19)
+    at Multipart.<anonymous> (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/multer/lib/make-middleware.js:155:7)
+    at Multipart.emit (node:events:508:28)
+    at HeaderParser.cb (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/busboy/lib/types/multipart.js:358:14)
+    at HeaderParser.push (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/busboy/lib/types/multipart.js:162:20)
+    at SBMH.ssCb [as _cb] (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/busboy/lib/types/multipart.js:394:37)
+    at feed (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/streamsearch/lib/sbmh.js:248:10)
+    at SBMH.push (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/streamsearch/lib/sbmh.js:104:16)
+    at Multipart._write (/data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/busboy/lib/types/multipart.js:567:19)
+    at writeOrBuffer (node:internal/streams/writable:570:12)

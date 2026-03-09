@@ -1,12 +1,15 @@
 package com.wlav.stlauncher
 
 import android.Manifest
+import android.app.DownloadManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.util.Base64
 import android.util.Log
 import android.webkit.*
 import android.widget.Toast
@@ -29,6 +32,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var webViewLoaded = false
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
+    private lateinit var saveFileLauncher: ActivityResultLauncher<Intent>
+    private var pendingDownloadBytes: ByteArray? = null
+    private var pendingFileName: String = "download"
+    private var pendingMimeType: String = "application/octet-stream"
 
     private val portReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -59,6 +66,28 @@ class MainActivity : AppCompatActivity() {
             } else null
             fileUploadCallback?.onReceiveValue(results)
             fileUploadCallback = null
+        }
+
+        // Register SAF save-file launcher (user picks save location)
+        saveFileLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK && result.data?.data != null) {
+                val uri = result.data!!.data!!
+                val bytes = pendingDownloadBytes
+                pendingDownloadBytes = null
+                if (bytes != null) {
+                    try {
+                        contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                        Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "SAF save failed", e)
+                        Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                pendingDownloadBytes = null
+            }
         }
 
         webView = findViewById(R.id.webView)
@@ -101,6 +130,8 @@ class MainActivity : AppCompatActivity() {
         webViewLoaded = true
         runOnUiThread {
             Log.i(TAG, "Loading WebView: http://127.0.0.1:$port")
+            // Clear history so back button won't go back to loading.html
+            webView.clearHistory()
             webView.loadUrl("http://127.0.0.1:$port")
         }
     }
@@ -204,6 +235,38 @@ class MainActivity : AppCompatActivity() {
                         // Initial send + periodic fallback
                         sendColor();
                         setInterval(sendColor, 3000);
+                        
+                        // Blob download click interceptor
+                        if (!window._stBlobInterceptorActive) {
+                            window._stBlobInterceptorActive = true;
+                            document.addEventListener('click', function(e) {
+                                var target = e.target;
+                                while (target && target.tagName !== 'A') {
+                                    target = target.parentElement;
+                                }
+                                if (target && target.tagName === 'A' && target.hasAttribute('download') && target.href.startsWith('blob:')) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    var fileName = target.getAttribute('download') || 'download';
+                                    var url = target.href;
+                                    console.log('Intercepted blob download for:', fileName);
+                                    if (window.Android && window.Android.showToast) {
+                                        window.Android.showToast("正在处理: " + fileName);
+                                    }
+                                    fetch(url).then(r => r.blob()).then(blob => {
+                                        var reader = new FileReader();
+                                        reader.onloadend = function() {
+                                            var base64 = reader.result.split(',')[1];
+                                            var mime = blob.type || 'application/octet-stream';
+                                            if (window.Android) {
+                                                window.Android.saveBase64File(base64, fileName, mime);
+                                            }
+                                        };
+                                        reader.readAsDataURL(blob);
+                                    }).catch(err => console.error('Blob fetch failed:', err));
+                                }
+                            }, true);
+                        }
                     })()
                 """.trimIndent(), null)
             }
@@ -241,9 +304,99 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         }
+
+        // File download support — all downloads go through SAF (user picks save location)
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
+            try {
+                val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
+                    .let { if (it == "downloadfile" || it == "downloadfile.bin") "export_${System.currentTimeMillis()}.json" else it }
+                if (url.startsWith("blob:")) {
+                    // blob: URL — inject JS to fetch blob, convert to base64, pass via bridge
+                    Toast.makeText(this@MainActivity, "正在处理: $fileName", Toast.LENGTH_SHORT).show()
+                    val safeUrl = url.replace("'", "\\'")
+                    val safeName = fileName.replace("'", "\\'")
+                    val safeMime = (mimeType ?: "application/octet-stream").replace("'", "\\'")
+                    val js = "(async function(){" +
+                        "try{" +
+                        "var r=await fetch('$safeUrl');" +
+                        "var b=await r.blob();" +
+                        "var reader=new FileReader();" +
+                        "reader.onloadend=function(){" +
+                        "var base64=reader.result.split(',')[1];" +
+                        "window.Android.saveBase64File(base64,'$safeName','$safeMime');" +
+                        "};" +
+                        "reader.readAsDataURL(b);" +
+                        "}catch(e){console.error('Blob download error:',e);}" +
+                        "})()"
+                    webView.evaluateJavascript(js, null)
+                } else if (url.startsWith("data:")) {
+                    // data: URI — decode base64 in memory
+                    val commaIndex = url.indexOf(',')
+                    if (commaIndex < 0) return@setDownloadListener
+                    val bytes = Base64.decode(url.substring(commaIndex + 1), Base64.DEFAULT)
+                    launchSafSave(fileName, mimeType ?: "application/octet-stream", bytes)
+                } else {
+                    // HTTP URL — download in background, then prompt SAF
+                    Toast.makeText(this@MainActivity, "正在下载: $fileName", Toast.LENGTH_SHORT).show()
+                    Thread {
+                        try {
+                            val conn = URL(url).openConnection() as HttpURLConnection
+                            conn.setRequestProperty("User-Agent", userAgent)
+                            conn.connectTimeout = 30000
+                            conn.readTimeout = 60000
+                            val bytes = conn.inputStream.readBytes()
+                            conn.disconnect()
+                            runOnUiThread {
+                                launchSafSave(fileName, mimeType ?: "application/octet-stream", bytes)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Download failed", e)
+                            runOnUiThread {
+                                Toast.makeText(this@MainActivity, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }.start()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed", e)
+                Toast.makeText(this@MainActivity, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun launchSafSave(fileName: String, mimeType: String, bytes: ByteArray) {
+        pendingDownloadBytes = bytes
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mimeType
+            putExtra(Intent.EXTRA_TITLE, fileName)
+        }
+        saveFileLauncher.launch(intent)
     }
 
     inner class WebAppInterface {
+        @JavascriptInterface
+        fun showToast(msg: String) {
+            runOnUiThread {
+                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        @JavascriptInterface
+        fun saveBase64File(base64: String, fileName: String, mimeType: String) {
+            try {
+                val bytes = Base64.decode(base64, Base64.DEFAULT)
+                runOnUiThread {
+                    launchSafSave(fileName, mimeType, bytes)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "saveBase64File failed", e)
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
         @JavascriptInterface
         fun setThemeColor(color: String) {
             val parsed = parseColor(color)
@@ -254,11 +407,33 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        @JavascriptInterface
+        fun getLog(): String {
+            val logFile = java.io.File(filesDir, "server.log")
+            return if (logFile.exists()) {
+                // Return last 200 lines to avoid memory issues
+                val lines = logFile.readLines()
+                lines.takeLast(200).joinToString("\n")
+            } else {
+                "日志文件暂未生成,请等待服务启动..."
+            }
+        }
     }
 
     @Deprecated("Use OnBackPressedDispatcher")
     override fun onBackPressed() {
         if (webView.canGoBack()) {
+            // Check if going back would land on loading.html
+            val backList = webView.copyBackForwardList()
+            val currentIndex = backList.currentIndex
+            if (currentIndex > 0) {
+                val prevUrl = backList.getItemAtIndex(currentIndex - 1).url
+                if (prevUrl.contains("loading.html")) {
+                    // Don't go back to loading page, just ignore
+                    return
+                }
+            }
             webView.goBack()
         } else {
             @Suppress("DEPRECATION")

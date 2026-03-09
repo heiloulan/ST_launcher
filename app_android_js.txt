@@ -1,0 +1,254 @@
+﻿/**
+
+ * Android-specific API endpoints for SillyTavern Launcher
+
+ * - Data export (tar.gz of data/ directory)
+
+ * - Data import (upload and extract tar.gz to data/)
+
+ * - Server log reading
+
+ */
+
+import express from 'express';
+
+import path from 'node:path';
+
+import fs from 'node:fs';
+
+import { spawn } from 'node:child_process';
+
+import multer from 'multer';
+
+
+
+import os from 'node:os';
+
+
+
+export const router = express.Router();
+
+
+
+const uploadDir = path.join(process.cwd(), 'data', 'temp_uploads');
+
+if (!fs.existsSync(uploadDir)) {
+
+    fs.mkdirSync(uploadDir, { recursive: true });
+
+}
+
+const upload = multer({ dest: uploadDir });
+
+
+
+/**
+
+ * POST /api/android/export-data
+
+ * Packs the data/ directory into a tar.gz and streams it back as a download.
+
+ */
+
+router.post('/export-data', async (req, res) => {
+
+    try {
+
+        const dataDir = path.join(process.cwd(), 'data');
+
+        if (!fs.existsSync(dataDir)) {
+
+            return res.status(404).send('Data directory not found');
+
+        }
+
+
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+        const filename = `sillytavern_backup_${timestamp}.tar.gz`;
+
+
+
+        res.setHeader('Content-Type', 'application/gzip');
+
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+
+
+        // Stream tar.gz directly to response
+
+        const tar = spawn('tar', ['-czf', '-', '-C', process.cwd(), 'data']);
+
+        tar.stdout.pipe(res);
+
+        tar.stderr.on('data', (data) => {
+
+            console.error(`[Android Export] tar stderr: ${data}`);
+
+        });
+
+        tar.on('error', (err) => {
+
+            console.error('[Android Export] tar spawn error:', err);
+
+            if (!res.headersSent) {
+
+                res.status(500).send(`Export failed: ${err.message}`);
+
+            }
+
+        });
+
+        tar.on('close', (code) => {
+
+            if (code !== 0) {
+
+                console.error(`[Android Export] tar exited with code ${code}`);
+
+            }
+
+        });
+
+    } catch (err) {
+
+        console.error('[Android Export] Error:', err);
+
+        res.status(500).send(err.message);
+
+    }
+
+});
+
+
+
+/**
+
+ * POST /api/android/import-data
+
+ * Receives a tar.gz file and extracts it to overwrite the data/ directory.
+
+ */
+
+router.post('/import-data', upload.any(), async (req, res) => {
+
+    try {
+
+        if (!req.files || req.files.length === 0) {
+
+            return res.status(400).send('No file uploaded');
+
+        }
+
+
+
+        const uploadedFile = req.files[0].path;
+
+        const cwd = process.cwd();
+
+
+
+        // Extract the uploaded tar.gz, overwriting existing data/
+
+        const tar = spawn('tar', ['-xzf', uploadedFile, '-C', cwd]);
+
+
+
+        let stderr = '';
+
+        tar.stderr.on('data', (data) => {
+
+            stderr += data.toString();
+
+        });
+
+
+
+        tar.on('close', (code) => {
+
+            // Clean up uploaded file
+
+            try { fs.unlinkSync(uploadedFile); } catch (_) { }
+
+
+
+            if (code !== 0) {
+
+                console.error(`[Android Import] tar failed: ${stderr}`);
+
+                return res.status(500).send(`Import failed: ${stderr}`);
+
+            }
+
+
+
+            console.log('[Android Import] Data imported successfully');
+
+            res.json({ success: true, message: 'Data imported successfully' });
+
+        });
+
+
+
+        tar.on('error', (err) => {
+
+            try { fs.unlinkSync(uploadedFile); } catch (_) { }
+
+            console.error('[Android Import] tar spawn error:', err);
+
+            res.status(500).send(`Import failed: ${err.message}`);
+
+        });
+
+    } catch (err) {
+
+        console.error('[Android Import] Error:', err);
+
+        res.status(500).send(err.message);
+
+    }
+
+});
+
+
+
+/**
+
+ * GET /api/android/log
+
+ * Returns the server log file contents (last 200 lines).
+
+ */
+
+router.get('/log', (req, res) => {
+
+    try {
+
+        const logPath = path.join(process.env.HOME || process.cwd(), 'server.log');
+
+        if (!fs.existsSync(logPath)) {
+
+            return res.type('text').send('鏃ュ織鏂囦欢鏆傛湭鐢熸垚锛岃绛夊緟鏈嶅姟鍚姩...');
+
+        }
+
+
+
+        const content = fs.readFileSync(logPath, 'utf-8');
+
+        const lines = content.split('\n');
+
+        const last200 = lines.slice(-200).join('\n');
+
+        res.type('text').send(last200);
+
+    } catch (err) {
+
+        console.error('[Android Log] Error:', err);
+
+        res.status(500).send(err.message);
+
+    }
+
+});
+

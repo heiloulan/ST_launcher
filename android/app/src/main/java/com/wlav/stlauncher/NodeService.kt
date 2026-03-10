@@ -2,6 +2,7 @@ package com.wlav.stlauncher
 
 import android.app.*
 import android.content.*
+import android.net.wifi.WifiManager
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -22,6 +23,8 @@ class NodeService : Service() {
 
     private var nodeProcess: java.lang.Process? = null
     private var port: Int = 0
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -31,6 +34,21 @@ class NodeService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification("少女祈祷中…")
         startForeground(NOTIFICATION_ID, notification)
+
+        // 获取 WakeLock 防止 CPU 休眠
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "STLauncher::NodeServiceLock"
+        ).apply { acquire() }
+
+        // 获取 WifiLock 防止 WiFi 断开
+        @Suppress("DEPRECATION")
+        val wifiMgr = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        wifiLock = wifiMgr.createWifiLock(
+            WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+            "STLauncher::WifiLock"
+        ).apply { acquire() }
 
         Thread {
             try {
@@ -132,11 +150,15 @@ class NodeService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wifiLock?.let { if (it.isHeld) it.release() }
         stopNode()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wifiLock?.let { if (it.isHeld) it.release() }
         stopNode()
         stopSelf()
     }

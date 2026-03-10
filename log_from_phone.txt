@@ -1,0 +1,20 @@
+以下是log报错：
+Generation failed FetchError: request to https://gcli.ggchan.dev//chat/completions failed, reason: read ECONNABORTED
+    at ClientRequest.<anonymous> (file:///data/data/com.wlav.stlauncher/files/sillytavern/SillyTavern/node_modules/node-fetch/src/index.js:108:11)
+    at ClientRequest.emit (node:events:520:35)
+    at emitErrorEvent (node:_http_client:108:11)
+    at TLSSocket.socketErrorListener (node:_http_client:575:5)
+    at TLSSocket.emit (node:events:508:28)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  type: 'system',
+  errno: 'ECONNABORTED',
+  code: 'ECONNABORTED',
+  erroredSysCall: 'read'
+}
+
+以下是前端报错：
+Chat Completion API
+
+request to https://gcli.ggchan.dev//chat/completions failed, reason: read ECONNABORTED

@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.util.Base64
 import android.util.Log
+import android.os.PowerManager
+import android.provider.Settings
 import android.webkit.*
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
@@ -111,6 +113,9 @@ class MainActivity : AppCompatActivity() {
 
         // Polling fallback: try to connect to the server in case broadcast is missed
         startServerPolling()
+
+        // 引导用户关闭电池优化，防止系统在后台杀死进程
+        requestBatteryOptimizationExemption()
     }
 
     private fun requestNotificationPermission() {
@@ -235,25 +240,18 @@ class MainActivity : AppCompatActivity() {
                         // Initial send + periodic fallback
                         sendColor();
                         setInterval(sendColor, 3000);
-                        
-                        // Blob download click interceptor
-                        if (!window._stBlobInterceptorActive) {
-                            window._stBlobInterceptorActive = true;
-                            document.addEventListener('click', function(e) {
-                                var target = e.target;
-                                while (target && target.tagName !== 'A') {
-                                    target = target.parentElement;
-                                }
-                                if (target && target.tagName === 'A' && target.hasAttribute('download') && target.href.startsWith('blob:')) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    var fileName = target.getAttribute('download') || 'download';
-                                    var url = target.href;
-                                    console.log('Intercepted blob download for:', fileName);
-                                    if (window.Android && window.Android.showToast) {
-                                        window.Android.showToast("正在处理: " + fileName);
-                                    }
-                                    fetch(url).then(r => r.blob()).then(blob => {
+
+                        // Monkey-patch HTMLAnchorElement.prototype.click
+                        // 拦截所有 blob: URL 的 <a> 下载（包括游离节点）
+                        if (!window._stClickPatchActive) {
+                            window._stClickPatchActive = true;
+                            var origClick = HTMLAnchorElement.prototype.click;
+                            HTMLAnchorElement.prototype.click = function() {
+                                if (this.hasAttribute('download') && this.href && this.href.startsWith('blob:')) {
+                                    var fileName = this.getAttribute('download') || 'download';
+                                    var url = this.href;
+                                    console.log('[STLauncher] Intercepted blob download:', fileName);
+                                    fetch(url).then(function(r) { return r.blob(); }).then(function(blob) {
                                         var reader = new FileReader();
                                         reader.onloadend = function() {
                                             var base64 = reader.result.split(',')[1];
@@ -263,9 +261,11 @@ class MainActivity : AppCompatActivity() {
                                             }
                                         };
                                         reader.readAsDataURL(blob);
-                                    }).catch(err => console.error('Blob fetch failed:', err));
+                                    }).catch(function(err) { console.error('Blob download failed:', err); });
+                                    return;
                                 }
-                            }, true);
+                                return origClick.call(this);
+                            };
                         }
                     })()
                 """.trimIndent(), null)
@@ -287,7 +287,11 @@ class MainActivity : AppCompatActivity() {
                 fileUploadCallback?.onReceiveValue(null)
                 fileUploadCallback = filePathCallback
 
-                val intent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                // 不使用 createIntent()，因为 Android SAF 无法正确映射
+                // .jsonl, .charx, .byaf, .lorebook 等非标准扩展名的 MIME type，
+                // 导致用户在文件选择器中看不到这些文件。
+                // 统一使用 */* 放开过滤，由前端 JS 校验文件类型。
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
                     putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
@@ -438,6 +442,42 @@ class MainActivity : AppCompatActivity() {
         } else {
             @Suppress("DEPRECATION")
             super.onBackPressed()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 确保从后台恢复时 WebView JS 定时器正常运行
+        if (::webView.isInitialized) {
+            webView.resumeTimers()
+        }
+    }
+
+    // 注意：故意不 override onPause/onStop 来调用 webView.onPause()/pauseTimers()
+    // 这样 WebView 的 JS 引擎在后台仍尝试继续运行
+
+    /**
+     * 引导用户关闭电池优化，防止系统在后台杀死进程
+     */
+    private fun requestBatteryOptimizationExemption() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("后台防断连设置")
+                .setMessage("因部分操作系统的严格杀后台限制，为防止切换应用时 AI 消息断连：\n\n请点击【去设置】，在应用详情中手动寻找并开启【允许后台运行 / 无限制省电】以及【自启动】权限。")
+                .setCancelable(false)
+                .setPositiveButton("去设置") { _, _ ->
+                    try {
+                        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(fallback)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Settings intent failed", e)
+                    }
+                }
+                .setNegativeButton("已设置 / 稍后", null)
+                .show()
         }
     }
 

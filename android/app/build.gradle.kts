@@ -11,8 +11,8 @@ android {
         applicationId = "com.wlav.stlauncher"
         minSdk = 26
         targetSdk = 35
-        versionCode = 21
-        versionName = "0.21"
+        versionCode = 22
+        versionName = "0.22"
     }
 
     buildTypes {
@@ -46,3 +46,33 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.webkit:webkit:1.12.1")
 }
+
+val requiredRuntimeAssets = listOf(
+    "sillytavern.tar",
+    "git_bundle.tar",
+    "node_bundle/node",
+    "node_bundle/ffmpeg",
+    "node_bundle/libc++_shared.so",
+    "node_bundle/libcrypto.so.3",
+    "node_bundle/libssl.so.3",
+)
+
+val verifyRuntimeAssets by tasks.registering {
+    group = "verification"
+    description = "Checks generated Node and SillyTavern runtime assets."
+
+    doLast {
+        val assetsDirectory = project.file("src/main/assets")
+        val missing = requiredRuntimeAssets.filterNot { assetsDirectory.resolve(it).isFile }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing generated runtime assets: ${missing.joinToString()}. " +
+                    "Run `python3 tools/prepare_assets.py` from the repository root " +
+                    "(or `python3 ../tools/prepare_assets.py` from android/).",
+            )
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
+    .configureEach { dependsOn(verifyRuntimeAssets) }

@@ -173,6 +173,7 @@ class NodeService : Service() {
 
         if (stBaseDir.exists() && versionFile.exists() && versionFile.readText() == currentVersion) {
             Log.i(TAG, "SillyTavern bundle already extracted (version $currentVersion)")
+            applySillyTavernOverlay(stDir)
             return stDir
         }
 
@@ -181,45 +182,116 @@ class NodeService : Service() {
 
         val tarAsset = "sillytavern.tar"
         Log.i(TAG, "Extracting $tarAsset from assets")
+        val tarFile = File(filesDir, tarAsset)
 
         try {
             assets.open(tarAsset).use { input ->
-                val tarFile = File(filesDir, tarAsset)
                 FileOutputStream(tarFile).use { output ->
                     input.copyTo(output)
                 }
-                
-                // Use OS tar command to extract
-                Log.i(TAG, "Running tar to extract SillyTavern...")
-                val pb = ProcessBuilder("tar", "-xf", tarFile.absolutePath, "-C", stBaseDir.absolutePath)
-                val process = pb.start()
-                process.waitFor()
-                if (process.exitValue() != 0) {
-                    Log.e(TAG, "tar command failed with exit code ${process.exitValue()}")
-                } else {
-                    Log.i(TAG, "tar command succeeded")
-                }
-                tarFile.delete()
-
-                // Generate config.yaml
-                val configYaml = """
-                    listen: false
-                    port: 8000
-                    autorun: false
-                    enableIPv6: false
-                    enableIPv4: true
-                    securityOverride: false
-                """.trimIndent()
-                val configDir = File(stDir, "config.yaml")
-                configDir.writeText(configYaml)
             }
+
+            Log.i(TAG, "Running tar to extract SillyTavern...")
+            val pb = ProcessBuilder("tar", "-xf", tarFile.absolutePath, "-C", stBaseDir.absolutePath)
+            pb.redirectErrorStream(true)
+            val process = pb.start()
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                throw IOException("tar failed with code ${process.exitValue()}: $output")
+            }
+            if (!stDir.isDirectory) {
+                throw IOException("SillyTavern directory is missing after extraction")
+            }
+
+            val configYaml = """
+                listen: false
+                port: 8000
+                autorun: false
+                enableIPv6: false
+                enableIPv4: true
+                securityOverride: false
+            """.trimIndent()
+            File(stDir, "config.yaml").writeText(configYaml)
+
+            applySillyTavernOverlay(stDir)
+            versionFile.writeText(currentVersion)
+            Log.i(TAG, "SillyTavern extraction complete.")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract SillyTavern: ${e.message}", e)
+            throw IllegalStateException("Unable to prepare SillyTavern runtime", e)
+        } finally {
+            tarFile.delete()
         }
 
-        versionFile.writeText(currentVersion)
-        Log.i(TAG, "SillyTavern extraction complete.")
         return stDir
+    }
+
+    /**
+     * Applies the small, source-controlled Android integration on top of the
+     * large generated SillyTavern bundle. This also updates existing installs
+     * without re-extracting or deleting their data directory.
+     */
+    private fun applySillyTavernOverlay(stDir: File) {
+        val overlayVersion = "v0.22-export-v1"
+        val marker = File(stDir, ".st-launcher-overlay-version")
+        if (marker.exists() && marker.readText() == overlayVersion) {
+            return
+        }
+        if (!stDir.isDirectory) {
+            throw IOException("Cannot apply overlay: ${stDir.absolutePath} is missing")
+        }
+
+        copyAssetTree("sillytavern_overlay", stDir)
+        ensureAndroidRouterRegistered(stDir)
+        marker.writeText(overlayVersion)
+        Log.i(TAG, "Applied SillyTavern Android overlay $overlayVersion")
+    }
+
+    private fun copyAssetTree(assetPath: String, destination: File) {
+        val children = assets.list(assetPath) ?: emptyArray()
+        if (children.isEmpty()) {
+            destination.parentFile?.mkdirs()
+            assets.open(assetPath).use { input ->
+                FileOutputStream(destination).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            return
+        }
+
+        destination.mkdirs()
+        for (child in children) {
+            copyAssetTree("$assetPath/$child", File(destination, child))
+        }
+    }
+
+    private fun ensureAndroidRouterRegistered(stDir: File) {
+        val startupFile = File(stDir, "src/server-startup.js")
+        if (!startupFile.isFile) {
+            throw IOException("Missing SillyTavern server startup file")
+        }
+
+        var source = startupFile.readText()
+        val importLine = "import { router as androidRouter } from './endpoints/android.js';"
+        if (!source.contains(importLine)) {
+            val importAnchor = "import { router as imageMetadataRouter } from './endpoints/image-metadata.js';"
+            if (!source.contains(importAnchor)) {
+                throw IOException("Unable to locate router import anchor")
+            }
+            source = source.replace(importAnchor, "$importAnchor\n$importLine")
+        }
+
+        val routeLine = "    app.use('/api/android', androidRouter);"
+        if (!source.contains(routeLine)) {
+            val routeAnchor = "    app.use('/api/image-metadata', imageMetadataRouter);"
+            if (!source.contains(routeAnchor)) {
+                throw IOException("Unable to locate router registration anchor")
+            }
+            source = source.replace(routeAnchor, "$routeAnchor\n$routeLine")
+        }
+
+        startupFile.writeText(source)
     }
 
     private fun extractGitBundle() {
@@ -314,7 +386,7 @@ class NodeService : Service() {
             if (fileName == "node" || fileName == "ffmpeg") {
                 outFile.setExecutable(true, false)
             }
-            outFile.setReadable(true, false)
+            outFile.setReadable(true, true)
         }
 
         // Create symlinks for versioned .so files

@@ -1,17 +1,16 @@
 package com.wlav.stlauncher
 
 import android.Manifest
-import android.app.DownloadManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.util.Base64
 import android.util.Log
 import android.os.PowerManager
+import android.provider.DocumentsContract
 import android.provider.Settings
 import android.webkit.*
 import android.widget.Toast
@@ -20,6 +19,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -32,12 +33,28 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     @Volatile private var webViewLoaded = false
+    @Volatile private var serverPort = 0
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var saveFileLauncher: ActivityResultLauncher<Intent>
-    private var pendingDownloadBytes: ByteArray? = null
-    private var pendingFileName: String = "download"
-    private var pendingMimeType: String = "application/octet-stream"
+    @Volatile private var pendingSave: PendingSave? = null
+
+    private sealed class PendingSave {
+        abstract val fileName: String
+        abstract val mimeType: String
+
+        data class Bytes(
+            override val fileName: String,
+            override val mimeType: String,
+            val bytes: ByteArray,
+        ) : PendingSave()
+
+        data class PreparedExport(
+            override val fileName: String,
+            override val mimeType: String,
+            val jobId: String,
+        ) : PendingSave()
+    }
 
     private val portReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -74,21 +91,17 @@ class MainActivity : AppCompatActivity() {
         saveFileLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
-            if (result.resultCode == RESULT_OK && result.data?.data != null) {
-                val uri = result.data!!.data!!
-                val bytes = pendingDownloadBytes
-                pendingDownloadBytes = null
-                if (bytes != null) {
-                    try {
-                        contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                        Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "SAF save failed", e)
-                        Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } else {
-                pendingDownloadBytes = null
+            val save = pendingSave
+            pendingSave = null
+            val uri = result.data?.data
+            if (result.resultCode != RESULT_OK || uri == null || save == null) {
+                Log.i(TAG, "SAF save cancelled")
+                return@registerForActivityResult
+            }
+
+            when (save) {
+                is PendingSave.Bytes -> writeBytesToUri(uri, save)
+                is PendingSave.PreparedExport -> streamPreparedExportToUri(uri, save)
             }
         }
 
@@ -103,7 +116,12 @@ class MainActivity : AppCompatActivity() {
 
         // Register receiver for port broadcast (fast path)
         val filter = IntentFilter(NodeService.ACTION_PORT_READY)
-        registerReceiver(portReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(
+            this,
+            portReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
 
         // Start the Node.js foreground service
         val serviceIntent = Intent(this, NodeService::class.java)
@@ -132,6 +150,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadWebViewUrl(port: Int) {
+        serverPort = port
         webViewLoaded = true
         runOnUiThread {
             Log.i(TAG, "Loading WebView: http://127.0.0.1:$port")
@@ -241,27 +260,66 @@ class MainActivity : AppCompatActivity() {
                         sendColor();
                         setInterval(sendColor, 3000);
 
-                        // Monkey-patch HTMLAnchorElement.prototype.click
-                        // 拦截所有 blob: URL 的 <a> 下载（包括游离节点）
+                        // Intercept blob downloads. Keep intercepted URLs alive
+                        // until the asynchronous FileReader operation finishes.
                         if (!window._stClickPatchActive) {
                             window._stClickPatchActive = true;
                             var origClick = HTMLAnchorElement.prototype.click;
+                            var origRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+                            var activeBlobUrls = new Set();
+                            var deferredRevokes = new Set();
+
+                            URL.revokeObjectURL = function(url) {
+                                if (activeBlobUrls.has(url)) {
+                                    deferredRevokes.add(url);
+                                    return;
+                                }
+                                origRevokeObjectURL(url);
+                            };
+
+                            function finishBlobDownload(url) {
+                                activeBlobUrls.delete(url);
+                                if (deferredRevokes.delete(url)) {
+                                    origRevokeObjectURL(url);
+                                }
+                            }
+
+                            function reportBlobFailure(url, error) {
+                                console.error('Blob download failed:', error);
+                                finishBlobDownload(url);
+                                if (window.Android && window.Android.showToast) {
+                                    window.Android.showToast('文件处理失败: ' + error);
+                                }
+                            }
+
                             HTMLAnchorElement.prototype.click = function() {
-                                if (this.hasAttribute('download') && this.href && this.href.startsWith('blob:')) {
+                                if (this.hasAttribute('download') && this.href && this.href.startsWith('blob:') && window.Android) {
                                     var fileName = this.getAttribute('download') || 'download';
                                     var url = this.href;
                                     console.log('[STLauncher] Intercepted blob download:', fileName);
+                                    activeBlobUrls.add(url);
                                     fetch(url).then(function(r) { return r.blob(); }).then(function(blob) {
                                         var reader = new FileReader();
-                                        reader.onloadend = function() {
-                                            var base64 = reader.result.split(',')[1];
-                                            var mime = blob.type || 'application/octet-stream';
-                                            if (window.Android) {
+                                        reader.onload = function() {
+                                            try {
+                                                var result = String(reader.result || '');
+                                                var base64 = result.split(',')[1];
+                                                if (!base64) throw new Error('FileReader returned no data');
+                                                var mime = blob.type || 'application/octet-stream';
                                                 window.Android.saveBase64File(base64, fileName, mime);
+                                                finishBlobDownload(url);
+                                            } catch (error) {
+                                                reportBlobFailure(url, error);
                                             }
                                         };
+                                        reader.onerror = function() {
+                                            reportBlobFailure(url, reader.error || 'FileReader error');
+                                        };
+                                        reader.onabort = function() {
+                                            reportBlobFailure(url, 'FileReader aborted');
+                                        };
                                         reader.readAsDataURL(blob);
-                                    }).catch(function(err) { console.error('Blob download failed:', err); });
+                                    }).catch(function(error) { reportBlobFailure(url, error); });
                                     return;
                                 }
                                 return origClick.call(this);
@@ -317,18 +375,19 @@ class MainActivity : AppCompatActivity() {
                 if (url.startsWith("blob:")) {
                     // blob: URL — inject JS to fetch blob, convert to base64, pass via bridge
                     Toast.makeText(this@MainActivity, "正在处理: $fileName", Toast.LENGTH_SHORT).show()
-                    val safeUrl = url.replace("'", "\\'")
-                    val safeName = fileName.replace("'", "\\'")
-                    val safeMime = (mimeType ?: "application/octet-stream").replace("'", "\\'")
+                    val safeUrl = JSONObject.quote(url)
+                    val safeName = JSONObject.quote(fileName)
+                    val safeMime = JSONObject.quote(mimeType ?: "application/octet-stream")
                     val js = "(async function(){" +
                         "try{" +
-                        "var r=await fetch('$safeUrl');" +
+                        "var r=await fetch($safeUrl);" +
                         "var b=await r.blob();" +
                         "var reader=new FileReader();" +
-                        "reader.onloadend=function(){" +
+                        "reader.onload=function(){" +
                         "var base64=reader.result.split(',')[1];" +
-                        "window.Android.saveBase64File(base64,'$safeName','$safeMime');" +
+                        "window.Android.saveBase64File(base64,$safeName,$safeMime);" +
                         "};" +
+                        "reader.onerror=function(){console.error('Blob FileReader error:',reader.error);window.Android.showToast('文件处理失败');};" +
                         "reader.readAsDataURL(b);" +
                         "}catch(e){console.error('Blob download error:',e);}" +
                         "})()"
@@ -369,13 +428,121 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchSafSave(fileName: String, mimeType: String, bytes: ByteArray) {
-        pendingDownloadBytes = bytes
+        launchDocumentSave(PendingSave.Bytes(fileName, mimeType, bytes))
+    }
+
+    private fun launchPreparedExportSave(fileName: String, mimeType: String, jobId: String) {
+        launchDocumentSave(PendingSave.PreparedExport(fileName, mimeType, jobId))
+    }
+
+    private fun launchDocumentSave(save: PendingSave): Boolean {
+        if (pendingSave != null) {
+            Toast.makeText(this, "已有保存窗口正在等待处理", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        pendingSave = save
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = mimeType
-            putExtra(Intent.EXTRA_TITLE, fileName)
+            type = save.mimeType
+            putExtra(Intent.EXTRA_TITLE, save.fileName)
         }
-        saveFileLauncher.launch(intent)
+
+        return try {
+            Log.i(TAG, "Launching SAF save for ${save.fileName}")
+            saveFileLauncher.launch(intent)
+            true
+        } catch (e: Exception) {
+            pendingSave = null
+            Log.e(TAG, "SAF picker launch failed", e)
+            Toast.makeText(this, "无法打开保存窗口: ${e.message}", Toast.LENGTH_SHORT).show()
+            false
+        }
+    }
+
+    private fun writeBytesToUri(uri: Uri, save: PendingSave.Bytes) {
+        Thread {
+            try {
+                val output = contentResolver.openOutputStream(uri, "w")
+                    ?: throw IOException("无法打开目标文件")
+                output.use { it.write(save.bytes) }
+                runOnUiThread {
+                    Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "SAF save failed", e)
+                deleteIncompleteDocument(uri)
+                runOnUiThread {
+                    Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun streamPreparedExportToUri(uri: Uri, save: PendingSave.PreparedExport) {
+        val port = serverPort
+        if (port <= 0) {
+            deleteIncompleteDocument(uri)
+            Toast.makeText(this, "服务器尚未就绪", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Toast.makeText(this, "正在写入备份文件...", Toast.LENGTH_SHORT).show()
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val baseUrl = "http://127.0.0.1:$port"
+                val downloadUrl = "$baseUrl/api/android/export-data/${save.jobId}"
+                connection = URL(downloadUrl).openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 30_000
+                connection.readTimeout = 30 * 60_000
+                CookieManager.getInstance().getCookie(baseUrl)?.let {
+                    connection.setRequestProperty("Cookie", it)
+                }
+
+                val responseCode = connection.responseCode
+                if (responseCode !in 200..299) {
+                    val message = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        ?: connection.responseMessage
+                    throw IOException("服务器返回 $responseCode: $message")
+                }
+
+                Log.i(TAG, "Streaming prepared export ${save.jobId} (${connection.contentLengthLong} bytes)")
+                val output = contentResolver.openOutputStream(uri, "w")
+                    ?: throw IOException("无法打开目标文件")
+                connection.inputStream.use { input ->
+                    output.use { destination ->
+                        input.copyTo(destination, 64 * 1024)
+                    }
+                }
+
+                Log.i(TAG, "Prepared export saved: ${save.fileName}")
+                runOnUiThread {
+                    Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Prepared export save failed", e)
+                deleteIncompleteDocument(uri)
+                runOnUiThread {
+                    Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    private fun deleteIncompleteDocument(uri: Uri) {
+        try {
+            if (DocumentsContract.isDocumentUri(this, uri)) {
+                DocumentsContract.deleteDocument(contentResolver, uri)
+            } else {
+                contentResolver.delete(uri, null, null)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to remove incomplete document: $uri", e)
+        }
     }
 
     inner class WebAppInterface {
@@ -399,6 +566,23 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+
+        @JavascriptInterface
+        fun savePreparedExport(jobId: String, fileName: String, mimeType: String): Boolean {
+            if (!Regex("""^[0-9a-fA-F-]{36}$""").matches(jobId) || serverPort <= 0) {
+                Log.e(TAG, "Rejected invalid prepared export request")
+                return false
+            }
+
+            runOnUiThread {
+                launchPreparedExportSave(
+                    fileName.ifBlank { "sillytavern_backup.tar.gz" },
+                    mimeType.ifBlank { "application/gzip" },
+                    jobId,
+                )
+            }
+            return true
         }
 
         @JavascriptInterface
@@ -495,4 +679,3 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) { null }
     }
 }
-

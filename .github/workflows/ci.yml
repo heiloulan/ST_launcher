@@ -38,7 +38,7 @@ jobs:
             runtime/package-lock.json
             runtime/plugin-st-launcher/package-lock.json
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

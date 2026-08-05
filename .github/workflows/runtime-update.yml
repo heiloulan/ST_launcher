@@ -35,7 +35,7 @@ jobs:
         name: Read updated Node version
         run: echo "node=$(jq -r '.node.version' runtime.lock.json)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ steps.runtime-version.outputs.node }}
           cache: npm

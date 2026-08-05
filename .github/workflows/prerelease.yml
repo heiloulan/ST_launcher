@@ -42,7 +42,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .cache/runtime
           key: runtime-${{ runner.os }}-${{ hashFiles('runtime.lock.json', 'runtime/**/package-lock.json') }}

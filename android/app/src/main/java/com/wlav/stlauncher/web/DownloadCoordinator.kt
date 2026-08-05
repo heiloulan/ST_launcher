@@ -112,7 +112,7 @@ class AndroidDownloadCoordinator(
                     .build()
             client.newCall(importRequest).execute().use { response ->
                 response.requireSuccess()
-                val payload = JSONObject(response.body?.string().orEmpty())
+                val payload = JSONObject(response.body.string())
                 payload.getString("id")
             }
         }
@@ -165,9 +165,15 @@ class AndroidDownloadCoordinator(
                 .build()
         client.newCall(request).execute().use { response ->
             response.requireSuccess()
-            response.body?.byteStream()?.use { input ->
-                input.copyTo(output, COPY_BUFFER_SIZE)
-            } ?: throw IOException(appContext.getString(R.string.download_empty_response))
+            val copied =
+                response.body.byteStream().use { input ->
+                    input.copyTo(output, COPY_BUFFER_SIZE)
+                }
+            // OkHttp 5 always hands back a body, so a truncated or empty
+            // download only shows up in the byte count.
+            if (copied == 0L) {
+                throw IOException(appContext.getString(R.string.download_empty_response))
+            }
         }
     }
 
@@ -193,7 +199,7 @@ class AndroidDownloadCoordinator(
                 .build()
         return client.newCall(csrfRequest).execute().use { response ->
             response.requireSuccess()
-            JSONObject(response.body?.string().orEmpty()).getString("token")
+            JSONObject(response.body.string()).getString("token")
         }
     }
 
@@ -222,7 +228,7 @@ class AndroidDownloadCoordinator(
 
     private fun Response.requireSuccess() {
         if (isSuccessful) return
-        val detail = body?.string()?.take(4_096).orEmpty()
+        val detail = body.string().take(4_096)
         throw IOException(
             if (detail.isBlank()) {
                 appContext.getString(R.string.download_http_error, code)

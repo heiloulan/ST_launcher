@@ -42,11 +42,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - uses: gradle/actions/setup-gradle@v5
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .cache/runtime
           key: runtime-${{ runner.os }}-${{ hashFiles('runtime.lock.json', 'runtime/**/package-lock.json') }}
@@ -85,7 +85,7 @@ jobs:
       - name: Verify APK release gates
         run: python tools/verify_apk.py android/app/build/outputs/apk/release/app-release-unsigned.apk
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: st-launcher-unsigned-release
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk

@@ -1,0 +1,86 @@
+.backend-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.backend-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+    color: var(--SmartThemeBodyColor, #eee);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.backend-btn:hover {
+    background: var(--SmartThemeBlurTintStrength, rgba(255, 255, 255, 0.1));
+}
+
+.backend-btn .fa {
+    width: 20px;
+    text-align: center;
+}
+
+.import-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate;
+    pointer-events: all;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.import-confirm-dialog {
+    width: 85%;
+    max-width: 320px;
+    padding: 24px;
+    border: 1px solid #e94560;
+    border-radius: 12px;
+    background: #1a1a2e;
+    color: #eee;
+    text-align: center;
+}
+
+.import-confirm-dialog h3 {
+    margin: 0 0 12px;
+    color: #e94560;
+}
+
+.import-confirm-dialog p {
+    margin: 0 0 20px;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.import-confirm-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.import-confirm-buttons button {
+    padding: 8px 20px;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.import-confirm-buttons .confirm-yes {
+    background: #e94560;
+    color: #fff;
+}
+
+.import-confirm-buttons .confirm-no {
+    background: #333;
+    color: #aaa;
+}

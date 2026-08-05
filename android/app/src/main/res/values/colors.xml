@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Surfaces -->
+    <color name="surface_background">#090A0F</color>
+    <color name="surface_elevated">#12141C</color>
+    <color name="surface_black">#000000</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B8BBC7</color>
+    <color name="text_tertiary">#7A7F8F</color>
+    <color name="text_log">#A5D6A7</color>
+
+    <!-- Accent -->
+    <color name="accent">#E94560</color>
+    <color name="accent_variant">#C81D4B</color>
+    <color name="accent_soft">#FF8FA8</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="secondary">#0F3460</color>
+
+    <!-- Status panel -->
+    <color name="progress_track">#23263A</color>
+    <color name="sparkle">#8FE3D0</color>
+
+    <!-- Halo: radial gradient stops, accent fading to fully transparent -->
+    <color name="halo_center">#66E94560</color>
+    <color name="halo_middle">#26E94560</color>
+    <color name="halo_edge">#00E94560</color>
+</resources>

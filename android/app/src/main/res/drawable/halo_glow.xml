@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft radial glow drawn behind the kaomoji. Fades to a fully transparent
+     accent so no hard edge appears against the panel background. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:centerColor="@color/halo_middle"
+        android:centerX="0.5"
+        android:centerY="0.5"
+        android:endColor="@color/halo_edge"
+        android:gradientRadius="50%p"
+        android:startColor="@color/halo_center"
+        android:type="radial" />
+</shape>

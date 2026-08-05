@@ -7,12 +7,16 @@ android/**/build/
 *.apk
 *.aab
 
+# Local signing material must stay outside version control
+*.jks
+*.keystore
+android/signing.properties
+
 # Generated runtime assets
-android/app/src/main/assets/sillytavern.tar
-android/app/src/main/assets/git_bundle.tar
-android/app/src/main/assets/node_bundle/node
-android/app/src/main/assets/node_bundle/ffmpeg
-android/app/src/main/assets/node_bundle/*.so*
+runtime/android-assets/runtime.bundle
+runtime/android-assets/runtime-manifest.json
+runtime/android-assets/THIRD_PARTY_NOTICES.txt
+runtime/generated/
 
 # Local caches and temporary files
 .cache/
@@ -22,6 +26,9 @@ tmp/
 *.zip
 __pycache__/
 *.py[cod]
+.ruff_cache/
+.pytest_cache/
+.venv/
 node_modules/
 
 # Logs and diagnostics

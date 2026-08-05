@@ -1,0 +1,14 @@
+{
+  "name": "st-launcher-server-plugin",
+  "version": "0.26.0",
+  "private": true,
+  "type": "module",
+  "description": "Transactional backup and health integration for ST Launcher",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "tar-stream": "3.1.7"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

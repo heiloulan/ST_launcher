@@ -1,12 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:layout_height="match_parent">
 
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:background="@color/surface_background"
+        android:visibility="invisible" />
+
+    <FrameLayout
+        android:id="@+id/statusPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/surface_background">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="32dp">
+
+            <!-- Halo, sparkle field and kaomoji share one box so every layer
+                 animates around the same centre point. -->
+            <FrameLayout
+                android:id="@+id/kaomojiStack"
+                android:layout_width="match_parent"
+                android:layout_height="196dp">
+
+                <ImageView
+                    android:id="@+id/haloView"
+                    android:layout_width="216dp"
+                    android:layout_height="216dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/halo_glow" />
+
+                <FrameLayout
+                    android:id="@+id/particleLayer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no" />
+
+                <!-- Decorative: TalkBack should announce the title and stage,
+                     not spell out a face that changes eight times a cycle. -->
+                <TextView
+                    android:id="@+id/kaomojiView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:importantForAccessibility="no"
+                    android:singleLine="true"
+                    android:textColor="@color/accent"
+                    android:textSize="34sp"
+                    tools:text="( ˘人˘ )" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/statusTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="@string/status_praying"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/statusStage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:maxLines="2"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                tools:text="正在安装运行环境" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/statusProgress"
+                android:layout_width="240dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:indeterminate="true"
+                app:indicatorColor="@color/accent"
+                app:trackColor="@color/progress_track"
+                app:trackCornerRadius="3dp"
+                app:trackThickness="4dp" />
+
+            <TextView
+                android:id="@+id/statusDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:maxLines="6"
+                android:textColor="@color/text_tertiary"
+                android:textSize="12sp"
+                tools:text="45%" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retryButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/action_retry"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- Always reachable, including on the failure screen, which is exactly
+             when the WebView-hosted log view is unavailable. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/logsButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="8dp"
+            android:text="@string/action_view_logs"
+            android:textColor="@color/text_tertiary"
+            android:textSize="13sp" />
+    </FrameLayout>
 
 </FrameLayout>

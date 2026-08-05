@@ -1,0 +1,15 @@
+FROM python:3.12-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b AS python-runtime
+
+FROM node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
+
+COPY --from=python-runtime /usr/local/ /usr/local/
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        binutils \
+        ca-certificates \
+        dpkg-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+CMD ["python3", "tools/build_runtime.py"]

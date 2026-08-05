@@ -1,0 +1,73 @@
+name: Runtime update pull request
+
+on:
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .cache/runtime
+          key: runtime-update-${{ runner.os }}-${{ hashFiles('runtime.lock.json') }}
+
+      - name: Resolve immutable upstream pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/check_runtime_updates.py --write
+
+      - id: runtime-version
+        name: Read updated Node version
+        run: echo "node=$(jq -r '.node.version' runtime.lock.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ steps.runtime-version.outputs.node }}
+          cache: npm
+          cache-dependency-path: |
+            runtime/package-lock.json
+            runtime/plugin-st-launcher/package-lock.json
+
+      - name: Validate a changed runtime
+        run: |
+          if git diff --quiet -- runtime.lock.json runtime/Containerfile; then
+            exit 0
+          fi
+          npm ci --prefix runtime
+          npm ci --prefix runtime/plugin-st-launcher
+          python -m pip install ruff==0.12.5
+          python tools/build_runtime.py
+          npm --prefix runtime run lint
+          node --test tests/launcher-plugin.test.mjs
+          python -m unittest discover -s tests
+          ruff check tools tests
+          ruff format --check tools tests
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/runtime-update
+          delete-branch: true
+          commit-message: "chore(runtime): refresh pinned upstream versions"
+          title: "chore(runtime): refresh pinned upstream versions"
+          body: |
+            Automated runtime supply-chain update.
+
+            The workflow resolved immutable commits, package URLs, SHA-256
+            digests and container image digests, then rebuilt and tested the
+            runtime. Review the generated lock diff and CI results before
+            merging.

@@ -1,0 +1,92 @@
+{
+  "formatVersion": 1,
+  "runtimeId": "st-1.18.0-node-24.18.0-r1",
+  "sillyTavern": {
+    "version": "1.18.0",
+    "commit": "51ad27fb86d39a3daca3adaa970375c9670c12df",
+    "archiveUrl": "https://github.com/SillyTavern/SillyTavern/archive/51ad27fb86d39a3daca3adaa970375c9670c12df.tar.gz",
+    "sha256": "8c479d5980ac69830e47ab643fef21308db5d9ac0cf15d51a0f35a95d2fc62a2",
+    "license": "AGPL-3.0-only"
+  },
+  "node": {
+    "version": "24.18.0",
+    "source": "Termux stable aarch64 packages",
+    "license": "MIT",
+    "packagesBaseUrl": "https://packages.termux.dev/apt/termux-main/",
+    "packages": [
+      {
+        "name": "nodejs-lts",
+        "version": "24.18.0",
+        "path": "pool/main/n/nodejs-lts/nodejs-lts_24.18.0_aarch64.deb",
+        "sha256": "6456b78aba9e0007de7a4c580d2b34bb3865145bebe06e75273152f8dcba4236"
+      },
+      {
+        "name": "libc++",
+        "version": "29",
+        "path": "pool/main/libc/libc++/libc++_29_aarch64.deb",
+        "sha256": "bb9f12113c137aa0e8513bb51cc49fe77a5ce3ca39ab9e92c57d228ecdf00222"
+      },
+      {
+        "name": "openssl",
+        "version": "1:3.6.3",
+        "path": "pool/main/o/openssl/openssl_1:3.6.3_aarch64.deb",
+        "sha256": "86760e9ce736f463236f2c15b1eb3a3fdcfc5778d0fd7077a917448dcc90f3aa"
+      },
+      {
+        "name": "c-ares",
+        "version": "1.34.8",
+        "path": "pool/main/c/c-ares/c-ares_1.34.8_aarch64.deb",
+        "sha256": "7681fc23e822d7988ba8b2adf3468f93ae68f724dda365cff1385096a9fa87e6"
+      },
+      {
+        "name": "libicu",
+        "version": "78.3",
+        "path": "pool/main/libi/libicu/libicu_78.3_aarch64.deb",
+        "sha256": "f536403f65a08fe0df6e7304184e902d54def77d5c3bd5edfd9109d57601d276"
+      },
+      {
+        "name": "libsqlite",
+        "version": "3.53.4",
+        "path": "pool/main/libs/libsqlite/libsqlite_3.53.4_aarch64.deb",
+        "sha256": "0e909ce0d50fe123305446cd22e0c5edf535d40344b9b065fbdcdee52f53198d"
+      },
+      {
+        "name": "zlib",
+        "version": "1.3.2",
+        "path": "pool/main/z/zlib/zlib_1.3.2_aarch64.deb",
+        "sha256": "75e7d0af17fcc3b40004309fdc00a1ddb9ae08346dce5e269902c34ac3966ac9"
+      },
+      {
+        "name": "ca-certificates",
+        "version": "1:2026.07.16",
+        "path": "pool/main/c/ca-certificates/ca-certificates_1:2026.07.16_all.deb",
+        "sha256": "93dc49a8009012c29510081b8f07f30c57af9b10b1dae4f541231d8ee785b37a"
+      },
+      {
+        "name": "resolv-conf",
+        "version": "1.3",
+        "path": "pool/main/r/resolv-conf/resolv-conf_1.3_aarch64.deb",
+        "sha256": "ab541abac8e0c81709cd7ca4a02bcfa0d60ba1f4bfe7fd6dce4a694a4a9dfffa"
+      },
+      {
+        "name": "termux-licenses",
+        "version": "2.1",
+        "path": "pool/main/t/termux-licenses/termux-licenses_2.1_all.deb",
+        "sha256": "ee66487982438cce341cd232c5a9ea5f379cff66e8d2cea296ccef50b05d755b"
+      }
+    ]
+  },
+  "build": {
+    "container": "runtime/Containerfile",
+    "baseImages": [
+      "python:3.12-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b",
+      "node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d"
+    ],
+    "python": "3.12",
+    "npmInstall": "npm ci --omit=dev",
+    "npmLicenseOverrides": {
+      "taffydb@2.6.2": "BSD-2-Clause"
+    },
+    "maximumBundleBytes": 230686720
+  }
+}

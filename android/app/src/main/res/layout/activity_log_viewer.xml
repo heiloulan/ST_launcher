@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The background sits on the root rather than the scroll area: under
+     edge-to-edge the inset padding would otherwise expose the theme's black and
+     leave a seam against the panel colour. The resulting single-layer overdraw
+     of a solid colour is deliberate. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_background"
+    android:orientation="vertical"
+    tools:ignore="Overdraw">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/surface_elevated"
+        android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.MaterialComponents.Dark"
+        app:title="@string/log_viewer_title"
+        app:titleTextColor="@color/text_primary" />
+
+    <ScrollView
+        android:id="@+id/logScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbarStyle="outsideOverlay">
+
+        <!-- textIsSelectable is the whole point of this screen: long-press
+             raises Android's own selection toolbar, well away from
+             SillyTavern's global CSS and touch handlers. -->
+        <TextView
+            android:id="@+id/logText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:lineSpacingMultiplier="1.25"
+            android:padding="12dp"
+            android:textColor="@color/text_log"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+    </ScrollView>
+
+</LinearLayout>

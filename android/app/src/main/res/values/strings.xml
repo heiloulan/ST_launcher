@@ -1,3 +1,112 @@
 <resources>
     <string name="app_name">酒馆直装版</string>
+
+    <!-- Loading screen -->
+    <string name="status_praying">少女祈祷中……</string>
+    <string name="status_idle">服务已停止</string>
+    <string name="status_percent">%1$d%%</string>
+    <string name="status_attempt">尝试 %1$d/%2$d</string>
+
+    <!-- Preparation stages -->
+    <string name="stage_recovering">正在恢复未完成操作</string>
+    <string name="stage_migrating_data">正在安全迁移旧数据</string>
+    <string name="stage_installing_runtime">正在安装运行环境</string>
+    <string name="stage_preparing_configuration">正在准备配置</string>
+    <string name="stage_starting">正在启动 SillyTavern</string>
+    <string name="stage_loading_page">正在载入酒馆界面</string>
+    <string name="stage_stopping">正在停止本地服务</string>
+    <string name="stage_verifying_backup">正在验证备份</string>
+    <string name="stage_applying_backup">正在应用备份</string>
+
+    <!-- Actions -->
+    <string name="action_retry">重试</string>
+    <string name="action_reload">重新载入</string>
+    <string name="action_view_logs">查看日志 ›</string>
+    <string name="action_copy">复制</string>
+    <string name="action_share">分享</string>
+    <string name="action_auto_refresh">自动刷新</string>
+    <string name="action_open_settings">打开设置</string>
+    <string name="action_later">稍后</string>
+
+    <!-- Failure titles, keyed by RuntimeFailure.code -->
+    <string name="failure_unknown">启动失败</string>
+    <string name="failure_candidate_runtime_failed">运行时更新未通过健康检查</string>
+    <string name="failure_runtime_activation_failed">无法提交运行时更新</string>
+    <string name="failure_process_exited_during_start">启动过程中进程意外退出</string>
+    <string name="failure_start_timeout">启动超时</string>
+    <string name="failure_node_launch_failed">无法启动 Node 进程</string>
+    <string name="failure_unsupported_abi">设备架构不受支持</string>
+    <string name="failure_node_runtime_missing">Node 运行时文件缺失</string>
+    <string name="failure_runtime_incomplete">运行环境文件不完整</string>
+    <string name="failure_data_migration_failed">旧数据迁移失败</string>
+    <string name="failure_runtime_install_failed">运行环境安装失败</string>
+    <string name="failure_process_exited">服务进程已退出</string>
+
+    <!-- Activity-level errors -->
+    <string name="error_service_disconnected">本地服务连接已断开</string>
+    <string name="error_secure_channel">无法建立安全网页通道</string>
+    <string name="error_page_load_failed">页面载入失败</string>
+    <string name="error_unsafe_page">WebView 已阻止不安全页面</string>
+    <string name="error_render_process_gone">网页渲染进程已终止，请重新载入</string>
+
+    <!-- Toasts -->
+    <string name="toast_save_succeeded">保存成功</string>
+    <string name="toast_save_failed">保存失败：%1$s</string>
+    <string name="toast_save_dialog_busy">已有保存窗口正在等待处理</string>
+    <string name="toast_save_dialog_failed">无法打开保存窗口：%1$s</string>
+    <string name="toast_import_picker_failed">无法打开备份文件选择器</string>
+    <string name="toast_import_failed">导入失败：%1$s</string>
+    <string name="toast_server_not_ready">服务器尚未就绪</string>
+    <string name="toast_external_link_failed">无法打开外部链接</string>
+    <string name="toast_link_blocked">已阻止不受支持的链接</string>
+    <string name="toast_logs_unavailable">服务日志暂不可用</string>
+    <string name="toast_logs_copied">日志已复制</string>
+    <string name="toast_logs_empty">暂无日志可复制</string>
+
+    <!-- Backup details -->
+    <string name="detail_verifying_backup">当前数据不会在验证完成前被修改</string>
+    <string name="detail_applying_backup">如启动检查失败，将自动恢复原数据</string>
+    <string name="import_succeeded">数据导入成功</string>
+    <string name="import_health_check_failed">导入后的数据未通过启动检查</string>
+    <string name="import_rolled_back">%1$s；已恢复原数据</string>
+    <string name="import_failed_generic">导入失败</string>
+    <string name="import_original_kept">%1$s；原数据已保留</string>
+
+    <!-- Battery guidance -->
+    <string name="battery_dialog_title">后台运行提示</string>
+    <string name="battery_dialog_message">如需长时间在后台生成，可在系统的电池设置中将本应用设为“不受限制”。不设置也可以正常前台使用。</string>
+
+    <!-- Foreground service -->
+    <string name="notification_title">SillyTavern</string>
+    <string name="notification_channel_name">SillyTavern 服务</string>
+    <string name="notification_channel_description">本地 SillyTavern 服务运行状态</string>
+    <string name="notification_bootstrapping">正在准备运行环境…</string>
+    <string name="notification_idle">服务已停止</string>
+    <string name="notification_stopping">正在停止…</string>
+    <string name="notification_preparing">正在准备：%1$s</string>
+    <string name="notification_starting">正在启动（%1$d/%2$d）</string>
+    <string name="notification_ready">酒馆营业中 🍻</string>
+    <string name="notification_failed">启动失败，返回应用可重试</string>
+
+    <!-- Log viewer -->
+    <string name="log_viewer_title">服务器日志</string>
+    <string name="log_viewer_empty">暂无日志。服务启动后会在此显示输出。</string>
+    <string name="log_viewer_unavailable">无法读取服务日志，本地服务可能尚未启动。</string>
+    <string name="log_viewer_share_subject">SillyTavern 服务器日志</string>
+    <string name="log_viewer_share_chooser">分享日志</string>
+    <string name="log_viewer_share_unavailable">没有可用于分享的应用</string>
+
+    <!-- Web bridge / downloads -->
+    <string name="bridge_webview_outdated">Android System WebView 需要更新后才能安全启动</string>
+    <string name="bridge_origin_rejected">消息来源被拒绝</string>
+    <string name="bridge_unknown_message">未知消息类型</string>
+    <string name="bridge_invalid_request">请求无效</string>
+    <string name="bridge_request_failed">请求失败</string>
+    <string name="bridge_http_only_download">仅允许 HTTP(S) 下载</string>
+    <string name="bridge_cancel_url_local_only">取消地址必须使用当前本地来源</string>
+    <string name="download_open_target_failed">无法打开目标文件</string>
+    <string name="download_open_backup_failed">无法打开备份文件</string>
+    <string name="download_empty_response">服务器返回了空文件</string>
+    <string name="download_http_error">服务器返回 %1$d</string>
+    <string name="download_http_error_detail">服务器返回 %1$d：%2$s</string>
 </resources>

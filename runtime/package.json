@@ -1,0 +1,17 @@
+{
+  "name": "st-launcher-runtime-workspace",
+  "version": "0.26.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint plugin-st-launcher frontend-extension android-assets/web"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.0",
+    "globals": "17.4.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

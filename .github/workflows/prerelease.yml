@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - uses: gradle/actions/setup-gradle@v5
 

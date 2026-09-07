@@ -53,7 +53,7 @@ jobs:
           python -m pip install ruff==0.12.5
           python tools/build_runtime.py
           npm --prefix runtime run lint
-          node --test tests/launcher-plugin.test.mjs
+          node --test tests/*.test.mjs
           python -m unittest discover -s tests
           ruff check tools tests
           ruff format --check tools tests

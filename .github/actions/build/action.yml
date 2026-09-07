@@ -1,0 +1,75 @@
+name: Build and verify ST Launcher
+description: Shared source checks, pinned payload build and Android release build
+runs:
+  using: composite
+  steps:
+    - id: runtime-version
+      name: Read pinned Node version
+      shell: bash
+      run: echo "node=$(jq -r '.node.version' runtime.lock.json)" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: "17"
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: ${{ steps.runtime-version.outputs.node }}
+        cache: npm
+        cache-dependency-path: |
+          runtime/package-lock.json
+          runtime/plugin-st-launcher/package-lock.json
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+
+    - uses: android-actions/setup-android@v4
+
+    - uses: gradle/actions/setup-gradle@v5
+
+    - uses: actions/cache@v6
+      with:
+        path: .cache/runtime
+        key: runtime-${{ runner.os }}-${{ hashFiles('runtime.lock.json', 'runtime/**/package-lock.json') }}
+
+    - name: Install Android SDK
+      shell: bash
+      run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+    - name: Install test dependencies
+      shell: bash
+      run: |
+        npm ci --prefix runtime
+        npm ci --prefix runtime/plugin-st-launcher
+        python -m pip install ruff==0.12.5
+
+    - name: Lint and test runtime sources
+      shell: bash
+      run: |
+        npm --prefix runtime run lint
+        node --test tests/*.test.mjs
+        python -m unittest discover -s tests
+        ruff check tools tests
+        ruff format --check tools tests
+
+    - name: Build pinned runtime
+      shell: bash
+      run: python tools/build_runtime.py
+
+    - name: Verify Android project
+      working-directory: android
+      shell: bash
+      run: |
+        ./gradlew \
+          :runtime-core:check \
+          :app:spotlessCheck \
+          :app:testDebugUnitTest \
+          :app:compileDebugAndroidTestKotlin \
+          :app:lintDebug \
+          :app:assembleRelease
+
+    - name: Verify APK release gates
+      shell: bash
+      run: python tools/verify_apk.py android/app/build/outputs/apk/release/app-release-unsigned.apk

@@ -7,7 +7,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from tools.verify_apk import verify_apk
+from tools.verify_apk import require_16k_segments, verify_apk
 
 
 class ApkVerifierTests(unittest.TestCase):
@@ -78,11 +78,20 @@ class ApkVerifierTests(unittest.TestCase):
 
     @staticmethod
     def arm64_android_elf() -> bytes:
-        payload = bytearray(64)
+        payload = bytearray(120)
         payload[:7] = b"\x7fELF\x02\x01\x01"
         struct.pack_into("<HH", payload, 16, 3, 183)
+        struct.pack_into("<Q", payload, 32, 64)
+        struct.pack_into("<HH", payload, 54, 56, 1)
+        struct.pack_into("<IIQQQQQQ", payload, 64, 1, 5, 0, 0, 0, 120, 120, 16384)
         payload.extend(b"/system/bin/linker64\x00")
         return bytes(payload)
+
+    def test_four_kilobyte_library_segments_are_rejected(self):
+        payload = bytearray(self.arm64_android_elf())
+        struct.pack_into("<Q", payload, 112, 4096)
+        with self.assertRaisesRegex(RuntimeError, "16 KB"):
+            require_16k_segments(payload, "lib/example.so")
 
 
 if __name__ == "__main__":

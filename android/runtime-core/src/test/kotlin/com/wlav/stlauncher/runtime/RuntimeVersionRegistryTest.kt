@@ -22,7 +22,7 @@ class RuntimeVersionRegistryTest {
         val registry = RuntimeVersionRegistry()
         val candidate = installed("runtime-new")
 
-        val activation = registry.select(root, "runtime-new")
+        val activation = registry.select(root, "runtime-new", "native-v1")
 
         assertTrue(activation.isCandidate)
         assertNull(activation.previousPath)
@@ -38,11 +38,11 @@ class RuntimeVersionRegistryTest {
     fun `candidate without a previous runtime cannot roll back`() {
         val registry = RuntimeVersionRegistry()
         installed("runtime-only")
-        val activation = registry.select(root, "runtime-only")
+        val activation = registry.select(root, "runtime-only", "native-v1")
 
         assertNull(registry.rollback(root, activation))
 
-        val retriedAfterInterruption = registry.select(root, "runtime-only")
+        val retriedAfterInterruption = registry.select(root, "runtime-only", "native-v1")
         assertTrue(retriedAfterInterruption.isCandidate)
         assertNull(retriedAfterInterruption.previousId)
     }
@@ -51,9 +51,9 @@ class RuntimeVersionRegistryTest {
     fun `failed candidate rolls back to active runtime and is remembered`() {
         val registry = RuntimeVersionRegistry()
         installed("runtime-old")
-        registry.commit(root, registry.select(root, "runtime-old"))
+        registry.commit(root, registry.select(root, "runtime-old", "native-v1"))
         installed("runtime-new")
-        val candidate = registry.select(root, "runtime-new")
+        val candidate = registry.select(root, "runtime-new", "native-v1")
 
         val fallback = registry.rollback(root, candidate)
 
@@ -63,7 +63,7 @@ class RuntimeVersionRegistryTest {
         assertEquals("runtime-new", root.resolve("failed-version").readText().trim())
         assertFalse(root.resolve("pending-version.json").toFile().exists())
 
-        val selectedAgain = registry.select(root, "runtime-new")
+        val selectedAgain = registry.select(root, "runtime-new", "native-v1")
         assertEquals("runtime-old", selectedAgain.runtimeId)
         assertFalse(selectedAgain.isCandidate)
     }
@@ -72,11 +72,11 @@ class RuntimeVersionRegistryTest {
     fun `interrupted pending activation conservatively selects old runtime`() {
         val registry = RuntimeVersionRegistry()
         installed("runtime-old")
-        registry.commit(root, registry.select(root, "runtime-old"))
+        registry.commit(root, registry.select(root, "runtime-old", "native-v1"))
         installed("runtime-new")
-        registry.select(root, "runtime-new")
+        registry.select(root, "runtime-new", "native-v1")
 
-        val afterRestart = RuntimeVersionRegistry().select(root, "runtime-new")
+        val afterRestart = RuntimeVersionRegistry().select(root, "runtime-new", "native-v1")
 
         assertEquals("runtime-old", afterRestart.runtimeId)
         assertFalse(afterRestart.isCandidate)
@@ -87,14 +87,14 @@ class RuntimeVersionRegistryTest {
     fun `successful candidate keeps one previous version and prunes older versions`() {
         val registry = RuntimeVersionRegistry()
         installed("runtime-ancient")
-        registry.commit(root, registry.select(root, "runtime-ancient"))
+        registry.commit(root, registry.select(root, "runtime-ancient", "native-v1"))
         installed("runtime-old")
-        registry.commit(root, registry.select(root, "runtime-old"))
+        registry.commit(root, registry.select(root, "runtime-old", "native-v1"))
         installed("runtime-new")
         root.resolve("versions/not-a-directory").writeText("ignored")
         root.resolve("versions/.install-leftover").createDirectories()
 
-        registry.commit(root, registry.select(root, "runtime-new"))
+        registry.commit(root, registry.select(root, "runtime-new", "native-v1"))
 
         assertFalse(root.resolve("versions/runtime-ancient").toFile().exists())
         assertTrue(root.resolve("versions/runtime-old").toFile().isDirectory)
@@ -108,9 +108,9 @@ class RuntimeVersionRegistryTest {
     fun `active candidate is reused without creating pending state`() {
         val registry = RuntimeVersionRegistry()
         installed("runtime-current")
-        registry.commit(root, registry.select(root, "runtime-current"))
+        registry.commit(root, registry.select(root, "runtime-current", "native-v1"))
 
-        val current = registry.select(root, "runtime-current")
+        val current = registry.select(root, "runtime-current", "native-v1")
 
         assertEquals("runtime-current", current.runtimeId)
         assertFalse(current.isCandidate)
@@ -121,14 +121,14 @@ class RuntimeVersionRegistryTest {
     fun `invalid missing and forged activations are rejected`() {
         val registry = RuntimeVersionRegistry()
         assertThrows(IllegalArgumentException::class.java) {
-            registry.select(root, "../escape")
+            registry.select(root, "../escape", "native-v1")
         }
         assertThrows(IllegalStateException::class.java) {
-            registry.select(root, "not-installed")
+            registry.select(root, "not-installed", "native-v1")
         }
 
         installed("runtime-safe")
-        val activation = registry.select(root, "runtime-safe")
+        val activation = registry.select(root, "runtime-safe", "native-v1")
         val forged = activation.copy(runtimePath = root.resolve("outside"))
         assertThrows(IllegalArgumentException::class.java) {
             registry.commit(root, forged)
@@ -171,7 +171,7 @@ class RuntimeVersionRegistryTest {
             """{"candidateId":"runtime-other","previousId":"../bad"}""",
         )
 
-        val activation = registry.select(root, "runtime-safe")
+        val activation = registry.select(root, "runtime-safe", "native-v1")
 
         assertTrue(activation.isCandidate)
         assertNull(activation.previousPath)
@@ -184,4 +184,18 @@ class RuntimeVersionRegistryTest {
             .also {
                 it.resolve(RuntimeBundleInstaller.COMPLETE_MARKER).writeText("digest")
             }
+
+    @Test
+    fun `native changes prohibit fallback including after interrupted activation`() {
+        val registry = RuntimeVersionRegistry()
+        installed("runtime-old")
+        registry.commit(root, registry.select(root, "runtime-old", "old-node-and-libs"))
+        installed("runtime-new")
+        val candidate = registry.select(root, "runtime-new", "new-node-and-libs")
+        assertNull(candidate.previousPath)
+        assertNull(registry.rollback(root, candidate))
+        val restarted = registry.select(root, "runtime-new", "new-node-and-libs")
+        assertEquals("runtime-new", restarted.runtimeId)
+        assertTrue(restarted.isCandidate)
+    }
 }

@@ -45,6 +45,13 @@ export async function init(router) {
         });
     });
 
+    router.use((request, response, next) => {
+        if (request.path !== '/health' && request.user?.profile?.admin !== true) {
+            return sendError(response, new LauncherError('ADMIN_REQUIRED', 'Only administrators can back up or replace all users data', 403));
+        }
+        next();
+    });
+
     router.post('/exports', (request, response) => {
         try {
             assertOperationAvailable();
@@ -193,6 +200,7 @@ async function runExport(operation) {
         dataRoot,
         operation.directory,
         operation.controller.signal,
+        { config: process.env.ST_LAUNCHER_CONFIG_ROOT, 'global-extensions': process.env.ST_LAUNCHER_GLOBAL_EXTENSIONS },
     );
     operation.archivePath = result.archivePath;
     operation.archiveBytes = result.archiveBytes;

@@ -39,6 +39,30 @@ def require_arm64_android_elf(payload: bytes) -> None:
         raise RuntimeError("Packaged Node.js payload does not use Android linker64")
 
 
+def require_16k_segments(payload: bytes, name: str) -> None:
+    if len(payload) < 64 or payload[:7] != b"\x7fELF\x02\x01\x01":
+        raise RuntimeError(f"Invalid ELF64 library: {name}")
+    if struct.unpack_from("<H", payload, 18)[0] != 183:
+        raise RuntimeError(f"Not an AArch64 library: {name}")
+    offset = struct.unpack_from("<Q", payload, 32)[0]
+    size, count = struct.unpack_from("<HH", payload, 54)
+    if size < 56 or not count or offset + size * count > len(payload):
+        raise RuntimeError(f"Invalid ELF program headers: {name}")
+    load_segments = 0
+    for index in range(count):
+        header = offset + index * size
+        kind, _, file_offset, address, _, _, _, alignment = struct.unpack_from(
+            "<IIQQQQQQ", payload, header
+        )
+        if kind != 1:  # PT_LOAD
+            continue
+        load_segments += 1
+        if alignment < 16384 or (address - file_offset) % 16384:
+            raise RuntimeError(f"Native payload is not compatible with 16 KB pages: {name}")
+    if not load_segments:
+        raise RuntimeError(f"ELF has no loadable segments: {name}")
+
+
 def verify_apk(apk_path: Path, maximum_bytes: int = MAXIMUM_APK_BYTES) -> dict:
     if not apk_path.is_file():
         raise RuntimeError(f"APK does not exist: {apk_path}")
@@ -72,6 +96,7 @@ def verify_apk(apk_path: Path, maximum_bytes: int = MAXIMUM_APK_BYTES) -> dict:
     if bundle_digest != manifest.get("bundleSha256"):
         raise RuntimeError("Embedded runtime bundle does not match its manifest digest")
     require_arm64_android_elf(node_bytes)
+    require_16k_segments(node_bytes, "libstnode.so")
     if hashlib.sha256(node_bytes).hexdigest() != manifest.get("nodeSha256"):
         raise RuntimeError("Packaged Node.js payload does not match its manifest digest")
 
@@ -85,6 +110,8 @@ def verify_apk(apk_path: Path, maximum_bytes: int = MAXIMUM_APK_BYTES) -> dict:
                 f"Runtime is missing integration entries: {sorted(missing_runtime)}",
             )
         for name in runtime_names:
+            if name.startswith("lib/"):
+                require_16k_segments(runtime.read(name), name)
             path = PurePosixPath(name)
             if path.is_absolute() or ".." in path.parts:
                 raise RuntimeError(f"Runtime contains an unsafe path: {name}")
@@ -113,6 +140,7 @@ def verify_apk(apk_path: Path, maximum_bytes: int = MAXIMUM_APK_BYTES) -> dict:
         "runtimeFiles": len(runtime_names),
         "abis": sorted(native_abis),
         "runtimeId": manifest.get("runtimeId"),
+        "native16kPages": True,
         "nodeSha256": manifest.get("nodeSha256"),
     }
 

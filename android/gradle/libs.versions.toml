@@ -12,6 +12,7 @@ webkit = "1.16.0"
 okhttp = "5.4.0"
 junit = "6.1.2"
 spotless = "8.9.0"
+commonsCompress = "1.28.0"
 androidxTestCore = "1.6.1"
 androidxTestExt = "1.2.1"
 androidxTestRunner = "1.7.0"
@@ -30,6 +31,7 @@ androidx-lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmode
 androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }

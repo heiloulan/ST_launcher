@@ -36,7 +36,7 @@ object RuntimeStatusPresenter {
                     detail = null,
                     progress = null,
                     showProgress = false,
-                    showRetry = false,
+                    showRetry = true,
                     mood = KaomojiMood.SLEEPING,
                 )
 

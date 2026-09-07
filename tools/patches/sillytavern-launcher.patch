@@ -1,0 +1,414 @@
+--- a/src/endpoints/extensions.js
++++ b/src/endpoints/extensions.js
+@@ -3,65 +3,11 @@
+ 
+ import express from 'express';
+ import sanitize from 'sanitize-filename';
+-import { CheckRepoActions, default as simpleGit } from 'simple-git';
++import { installExtension, extensionVersion, updateExtension, extensionBranches, switchExtension, bundledExtensions, defaultExtension, restoreDefault } from '../git/launcher-extensions.js';
+ 
+ import { PUBLIC_DIRECTORIES } from '../constants.js';
+ import { getConfigValue, isValidUrl } from '../util.js';
+-import { createGitClient } from '../git/client.js';
+-
+-const gitBackend = getConfigValue('git.backend', 'auto');
+-
+-/**
+- * @type {Partial<import('simple-git').SimpleGitOptions>}
+- */
+-const OPTIONS = Object.freeze({ timeout: { block: 5 * 60 * 1000 } });
+-
+-/**
+- * This function extracts the extension information from the manifest file.
+- * @param {string} extensionPath - The path of the extension folder
+- * @returns {Promise<Object>} - Returns the manifest data as an object
+- */
+-async function getManifest(extensionPath) {
+-    const manifestPath = path.join(extensionPath, 'manifest.json');
+-
+-    // Check if manifest.json exists
+-    if (!fs.existsSync(manifestPath)) {
+-        throw new Error(`Manifest file not found at ${manifestPath}`);
+-    }
+-
+-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+-    return manifest;
+-}
+-
+-/**
+- * This function checks if the local repository is up-to-date with the remote repository.
+- * @param {string} extensionPath - The path of the extension folder
+- * @returns {Promise<Object>} - Returns the extension information as an object
+- */
+-async function checkIfRepoIsUpToDate(extensionPath) {
+-    const git = simpleGit({ baseDir: extensionPath, ...OPTIONS });
+-    await git.fetch('origin');
+-    const currentBranch = await git.branch();
+-    const currentCommitHash = await git.revparse(['HEAD']);
+-    const log = await git.log({
+-        from: currentCommitHash,
+-        to: `origin/${currentBranch.current}`,
+-    });
+-
+-    // Fetch remote repository information
+-    const remotes = await git.getRemotes(true);
+-    if (remotes.length === 0) {
+-        return {
+-            isUpToDate: true,
+-            remoteUrl: '',
+-        };
+-    }
+-
+-    return {
+-        isUpToDate: log.total === 0,
+-        remoteUrl: remotes[0].refs.fetch, // URL of the remote repository
+-    };
+-}
++
+ 
+ export const router = express.Router();
+ 
+@@ -107,7 +53,6 @@
+             return response.status(400).send('Bad Request: Only HTTP and HTTPS protocols are supported for the Extension URL.');
+         }
+ 
+-        const git = createGitClient({ backend: gitBackend });
+ 
+         // make sure the third-party directory exists
+         if (!fs.existsSync(path.join(request.user.directories.extensions))) {
+@@ -127,31 +72,12 @@
+         const extensionPath = path.join(basePath, extensionNameSanitized);
+         const folderName = path.basename(extensionPath);
+ 
+-        if (fs.existsSync(extensionPath)) {
+-            return response.status(409).send(`Directory already exists at ${extensionPath}`);
+-        }
+-
+-        const cloneOptions = { depth: 1 };
+-        if (branch) {
+-            cloneOptions.branch = branch;
+-        }
+-        await git.clone(parsedUrl.href, extensionPath, cloneOptions);
+-        console.info(`Extension has been cloned to ${extensionPath} from ${parsedUrl.href} at ${branch || '(default)'} branch`);
+-
+-        try {
+-            const manifest = await getManifest(extensionPath);
+-            if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+-                throw new Error('Manifest is not a valid JSON object.');
+-            }
+-            const { version, author, display_name } = manifest;
+-            return response.send({ version, author, display_name, extensionPath, folderName });
+-        } catch (manifestError) {
+-            await fs.promises.rm(extensionPath, { recursive: true, force: true });
+-            throw manifestError;
+-        }
++        const manifest = await installExtension(parsedUrl.href, extensionPath, branch, request.body.repair === true);
++        const { version, author, display_name, preserved } = manifest;
++        return response.send({ version, author, display_name, extensionPath, folderName, preserved });
+     } catch (error) {
+         console.error('Importing extension failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -186,31 +112,14 @@
+         const basePath = global ? PUBLIC_DIRECTORIES.globalExtensions : request.user.directories.extensions;
+         const extensionPath = path.join(basePath, extensionNameSanitized);
+ 
+-        if (!fs.existsSync(extensionPath)) {
+-            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
+-        }
+-
+-        const { isUpToDate, remoteUrl } = await checkIfRepoIsUpToDate(extensionPath);
+-        const git = simpleGit({ baseDir: extensionPath, ...OPTIONS });
+-        const isRepo = await git.checkIsRepo(CheckRepoActions.IS_REPO_ROOT);
+-        if (!isRepo) {
+-            throw new Error(`Directory is not a Git repository at ${extensionPath}`);
+-        }
+-        const currentBranch = await git.branch();
+-        if (!isUpToDate) {
+-            await git.pull('origin', currentBranch.current);
+-            console.info(`Extension has been updated at ${extensionPath}`);
+-        } else {
+-            console.info(`Extension is up to date at ${extensionPath}`);
+-        }
+-        await git.fetch('origin');
+-        const fullCommitHash = await git.revparse(['HEAD']);
+-        const shortCommitHash = fullCommitHash.slice(0, 7);
+-
+-        return response.send({ shortCommitHash, extensionPath, isUpToDate, remoteUrl });
++        if (!fs.existsSync(extensionPath) && !defaultExtension(extensionPath)) {
++            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
++        }
++
++        return response.send(await updateExtension(extensionPath));
+     } catch (error) {
+         console.error('Updating extension failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -234,32 +143,14 @@
+         const basePath = global ? PUBLIC_DIRECTORIES.globalExtensions : request.user.directories.extensions;
+         const extensionPath = path.join(basePath, extensionNameSanitized);
+ 
+-        if (!fs.existsSync(extensionPath)) {
+-            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
+-        }
+-
+-        const git = simpleGit({ baseDir: extensionPath, ...OPTIONS });
+-        // Unshallow the repository if it is shallow
+-        const isShallow = await git.revparse(['--is-shallow-repository']) === 'true';
+-        if (isShallow) {
+-            console.info(`Unshallowing the repository at ${extensionPath}`);
+-            await git.fetch('origin', ['--unshallow']);
+-        }
+-
+-        // Fetch all branches
+-        await git.remote(['set-branches', 'origin', '*']);
+-        await git.fetch('origin');
+-        const localBranches = await git.branchLocal();
+-        const remoteBranches = await git.branch(['-r', '--list', 'origin/*']);
+-        const result = [
+-            ...Object.values(localBranches.branches),
+-            ...Object.values(remoteBranches.branches),
+-        ].map(b => ({ current: b.current, commit: b.commit, name: b.name, label: b.label }));
+-
+-        return response.send(result);
++        if (!fs.existsSync(extensionPath) && !defaultExtension(extensionPath)) {
++            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
++        }
++
++        return response.send(await extensionBranches(extensionPath));
+     } catch (error) {
+         console.error('Getting branches failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -283,46 +174,15 @@
+         const basePath = global ? PUBLIC_DIRECTORIES.globalExtensions : request.user.directories.extensions;
+         const extensionPath = path.join(basePath, extensionNameSanitized);
+ 
+-        if (!fs.existsSync(extensionPath)) {
+-            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
+-        }
+-
+-        const git = simpleGit({ baseDir: extensionPath, ...OPTIONS });
+-        const branches = await git.branchLocal();
+-
+-        if (String(branch).startsWith('origin/')) {
+-            const localBranch = branch.replace('origin/', '');
+-            if (branches.all.includes(localBranch)) {
+-                console.info(`Branch ${localBranch} already exists locally, checking it out`);
+-                await git.checkout(localBranch);
+-                return response.sendStatus(204);
+-            }
+-
+-            console.info(`Branch ${localBranch} does not exist locally, creating it from ${branch}`);
+-            await git.checkoutBranch(localBranch, branch);
+-            return response.sendStatus(204);
+-        }
+-
+-        if (!branches.all.includes(branch)) {
+-            console.error(`Branch ${branch} does not exist locally`);
+-            return response.status(404).send(`Branch ${branch} does not exist locally`);
+-        }
+-
+-        // Check if the branch is already checked out
+-        const currentBranch = await git.branch();
+-        if (currentBranch.current === branch) {
+-            console.info(`Branch ${branch} is already checked out`);
+-            return response.sendStatus(204);
+-        }
+-
+-        // Checkout the branch
+-        await git.checkout(branch);
+-        console.info(`Checked out branch ${branch} at ${extensionPath}`);
+-
++        if (!fs.existsSync(extensionPath) && !defaultExtension(extensionPath)) {
++            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
++        }
++
++        await switchExtension(extensionPath, branch);
+         return response.sendStatus(204);
+     } catch (error) {
+         console.error('Switching branches failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -370,7 +230,7 @@
+         return response.sendStatus(204);
+     } catch (error) {
+         console.error('Moving extension failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -399,35 +259,14 @@
+         const basePath = global ? PUBLIC_DIRECTORIES.globalExtensions : request.user.directories.extensions;
+         const extensionPath = path.join(basePath, extensionNameSanitized);
+ 
+-        if (!fs.existsSync(extensionPath)) {
+-            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
+-        }
+-
+-        const git = simpleGit({ baseDir: extensionPath, ...OPTIONS });
+-        let currentCommitHash;
+-        try {
+-            const isRepo = await git.checkIsRepo(CheckRepoActions.IS_REPO_ROOT);
+-            if (!isRepo) {
+-                throw new Error(`Directory is not a Git repository at ${extensionPath}`);
+-            }
+-            currentCommitHash = await git.revparse(['HEAD']);
+-        } catch (error) {
+-            // it is not a git repo, or has no commits yet, or is a bare repo
+-            // not possible to update it, most likely can't get the branch name either
+-            return response.send({ currentBranchName: '', currentCommitHash: '', isUpToDate: true, remoteUrl: '' });
+-        }
+-
+-        const currentBranch = await git.branch();
+-        // get only the working branch
+-        const currentBranchName = currentBranch.current;
+-        await git.fetch('origin');
+-        console.debug(extensionNameSanitized, currentBranchName, currentCommitHash);
+-        const { isUpToDate, remoteUrl } = await checkIfRepoIsUpToDate(extensionPath);
+-
+-        return response.send({ currentBranchName, currentCommitHash, isUpToDate, remoteUrl });
++        if (!fs.existsSync(extensionPath) && !defaultExtension(extensionPath)) {
++            return response.status(404).send(`Directory does not exist at ${extensionPath}`);
++        }
++
++        return response.send(await extensionVersion(extensionPath));
+     } catch (error) {
+         console.error('Getting extension version failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -469,7 +308,7 @@
+         return response.send(`Extension has been deleted at ${extensionPath}`);
+     } catch (error) {
+         console.error('Deleting extension failed', error);
+-        return response.status(500).send('Internal Server Error. Check the server logs for more details.');
++        return response.status(error.status || 500).send(error.message || 'Extension operation failed');
+     }
+ });
+ 
+@@ -508,8 +347,18 @@
+         .filter(f => !userExtensions.some(e => e.name === f.name));
+ 
+     // Combine all extensions
+-    const allExtensions = [...builtInExtensions, ...userExtensions, ...globalExtensions];
++    const existing = [...builtInExtensions, ...userExtensions, ...globalExtensions];
++    const allExtensions = [...existing, ...bundledExtensions().filter(item => !existing.some(current => current.name === item.name))];
+     console.debug('Extensions available for', request.user.profile.handle, allExtensions);
+ 
+     return response.send(allExtensions);
+ });
++
++router.post('/restore-default', async (request, response) => {
++    try {
++        if (!request.user.profile.admin) return response.sendStatus(403);
++        const name = sanitize(String(request.body.extensionName || ''));
++        if (!name) return response.sendStatus(400);
++        return response.send(await restoreDefault(path.join(PUBLIC_DIRECTORIES.globalExtensions, name)));
++    } catch (error) { return response.status(error.status || 500).send(error.message); }
++});
+--- a/src/constants.js
++++ b/src/constants.js
+@@ -3,7 +3,7 @@
+     backups: 'backups/',
+     sounds: 'public/sounds',
+     extensions: 'public/scripts/extensions',
+-    globalExtensions: 'public/scripts/extensions/third-party',
++    globalExtensions: process.env.ST_LAUNCHER_GLOBAL_EXTENSIONS || 'public/scripts/extensions/third-party',
+ };
+ 
+ export const SETTINGS_FILE = 'settings.json';
+--- a/src/users.js
++++ b/src/users.js
+@@ -1025,6 +1025,13 @@
+  * @param {import('express').NextFunction} next Next function
+  */
+ export function requireLoginMiddleware(request, response, next) {
++    // Native startup has no user session. This exception exposes only the
++    // instance-authenticated health route, never user data or backup actions.
++    if (request.method === 'GET' && request.path === '/api/plugins/st-launcher/health'
++        && process.env.ST_LAUNCHER_INSTANCE_ID
++        && request.get('X-ST-Launcher-Instance') === process.env.ST_LAUNCHER_INSTANCE_ID) {
++        return next();
++    }
+     if (!request.user) {
+         return response.sendStatus(403);
+     }
+@@ -1094,22 +1101,15 @@
+         try {
+             const directory = directoryFn(req);
+             const filePath = decodeURIComponent(req.params[0]);
+-            const localPath = path.join(directory, filePath);
+-            if (!isPathUnderParent(directory, path.resolve(localPath))) {
+-                return res.sendStatus(403);
+-            }
+-            const existsLocal = fs.existsSync(localPath);
+-            if (existsLocal) {
+-                return res.sendFile(filePath, { root: directory });
+-            }
+-
+-            const globalPath = path.join(PUBLIC_DIRECTORIES.globalExtensions, filePath);
+-            if (!isPathUnderParent(PUBLIC_DIRECTORIES.globalExtensions, path.resolve(globalPath))) {
+-                return res.sendStatus(403);
+-            }
+-            const existsGlobal = fs.existsSync(globalPath);
+-            if (existsGlobal) {
+-                return res.sendFile(filePath, { root: PUBLIC_DIRECTORIES.globalExtensions });
++            const extensionName = filePath.split('/')[0];
++            const roots = [directory, PUBLIC_DIRECTORIES.globalExtensions, process.env.ST_LAUNCHER_DEFAULT_EXTENSIONS].filter(Boolean);
++            for (const root of roots) {
++                if (!isPathUnderParent(path.resolve(root), path.resolve(root, filePath))) return res.sendStatus(403);
++                if (fs.existsSync(path.join(root, extensionName))) {
++                    // One directory owns an extension. Missing files must not be
++                    // filled from a different version's default bundle.
++                    return res.sendFile(filePath, { root: path.resolve(root) });
++                }
+             }
+ 
+             return res.sendStatus(404);
+--- a/public/css/mobile-styles.css
++++ b/public/css/mobile-styles.css
+@@ -1,5 +1,28 @@
+ /*will apply to anything 1000px or less. this catches ipads, horizontal phones, and vertical phones)*/
+ @media screen and (max-width: 1000px) {
++
++    /* Fit navigation icons and hit areas within narrow Android viewports.
++       Keep the background aligned with the font-scaled toolbar and drawers. */
++    :root {
++        --topBarIconSize: min(calc(var(--mainFontSize) * 2), 8vw);
++    }
++
++    #top-bar {
++        height: var(--topBarBlockSize);
++    }
++
++    #top-settings-holder > .drawer {
++        flex: 1;
++        min-width: 0;
++    }
++
++    #top-settings-holder > .drawer > .drawer-toggle {
++        display: flex;
++        align-items: center;
++        justify-content: center;
++        width: 100%;
++        height: 100%;
++    }
+ 
+     #UI-Theme-Block,
+     #UI-Customization,

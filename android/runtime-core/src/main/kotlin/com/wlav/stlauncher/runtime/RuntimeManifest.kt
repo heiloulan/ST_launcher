@@ -15,9 +15,22 @@ data class RuntimeManifest(
     val bundleSha256: String,
     val uncompressedBytes: Long,
     val files: List<RuntimeFile>,
+    val nodeSha256: String = "",
 ) {
     val versionHash: String
         get() = bundleSha256
+
+    // Compare the APK executable and its bundled libraries, not just the Node
+    // version string. Missing legacy identity never authorizes a rollback.
+    val nativeIdentity: String
+        get() =
+            buildString {
+                require(nodeSha256.matches(Regex("[a-f0-9]{64}"))) { "Runtime Node identity is missing" }
+                appendLine(nodeSha256)
+                files.filter { it.path.startsWith("lib/") }.sortedBy { it.path }.forEach {
+                    appendLine("${it.path}:${it.sha256}")
+                }
+            }
 
     init {
         require(formatVersion == CURRENT_FORMAT_VERSION) {
@@ -47,6 +60,7 @@ data class RuntimeManifest(
                 sillyTavernVersion = root.requiredString("sillyTavernVersion"),
                 sillyTavernCommit = root.requiredString("sillyTavernCommit"),
                 nodeVersion = root.requiredString("nodeVersion"),
+                nodeSha256 = root["nodeSha256"]?.jsonPrimitive?.content.orEmpty(),
                 bundleSha256 = root.requiredString("bundleSha256"),
                 uncompressedBytes = root.requiredLong("uncompressedBytes"),
                 files =

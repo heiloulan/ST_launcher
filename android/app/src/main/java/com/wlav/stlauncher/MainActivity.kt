@@ -1,6 +1,7 @@
 package com.wlav.stlauncher
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -31,12 +32,13 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.wlav.stlauncher.databinding.ActivityMainBinding
-import com.wlav.stlauncher.runtime.ImportCommitResult
 import com.wlav.stlauncher.runtime.PreparationStage
 import com.wlav.stlauncher.runtime.RuntimeEndpoint
 import com.wlav.stlauncher.runtime.RuntimeForegroundService
 import com.wlav.stlauncher.runtime.RuntimeState
+import com.wlav.stlauncher.runtime.TransferState
 import com.wlav.stlauncher.ui.BatteryGuidance
 import com.wlav.stlauncher.ui.LogViewerActivity
 import com.wlav.stlauncher.ui.RuntimeStatusPresenter
@@ -51,6 +53,7 @@ import com.wlav.stlauncher.web.PendingSave
 import com.wlav.stlauncher.web.SecureWebBridge
 import com.wlav.stlauncher.web.ThemeColors
 import com.wlav.stlauncher.web.applyLauncherSecurityPolicy
+import com.wlav.stlauncher.web.toBundle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -83,6 +86,7 @@ class MainActivity :
     private var fileChooserAllowsMultiple = false
     private var retryAction: () -> Unit = { serviceBinder?.retry() }
     private var importPickerOpen = false
+    private var displayedTransferId = 0L
     private var webViewDestroyed = false
 
     private val fileChooserLauncher =
@@ -119,18 +123,14 @@ class MainActivity :
                 return@registerForActivityResult
             }
 
-            lifecycleScope.launch {
-                try {
-                    downloadCoordinator.save(pending, destination)
-                    showToast(getString(R.string.toast_save_succeeded))
-                } catch (error: Throwable) {
-                    runCatching { downloadCoordinator.cancel(pending) }
-                    showToast(
-                        getString(R.string.toast_save_failed, error.message.orEmpty()),
-                        long = true,
-                    )
-                }
-            }
+            retainDocumentPermission(result.data, destination)
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, RuntimeForegroundService::class.java)
+                    .setAction(RuntimeForegroundService.ACTION_SAVE)
+                    .putExtra(RuntimeForegroundService.EXTRA_SAVE, pending.toBundle())
+                    .putExtra(RuntimeForegroundService.EXTRA_URI, destination.toString()),
+            )
         }
 
     private val importFileLauncher =
@@ -142,6 +142,7 @@ class MainActivity :
             if (result.resultCode != RESULT_OK || source == null) {
                 return@registerForActivityResult
             }
+            retainDocumentPermission(result.data, source)
             uploadAndCommitImport(source)
         }
 
@@ -179,7 +180,7 @@ class MainActivity :
         setContentView(binding.root)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
             view.updatePadding(
                 left = bars.left,
                 top = bars.top,
@@ -196,7 +197,7 @@ class MainActivity :
             }
 
         downloadCoordinator = AndroidDownloadCoordinator(this)
-        blobStore = BlobDownloadStore(cacheDir)
+        blobStore = BlobDownloadStore(cacheDir, retainedPath = (viewModel.pendingSave as? PendingSave.TemporaryFile)?.path)
         val bridgeScript =
             assets
                 .open("web/launcher-bridge.js")
@@ -211,6 +212,7 @@ class MainActivity :
                 callbacks = this,
             )
 
+        binding.launcherMenuButton.setOnClickListener { openLauncherMenu() }
         configureWebView()
         configureBackNavigation()
         renderState(RuntimeState.Preparing(PreparationStage.RECOVERING))
@@ -221,6 +223,7 @@ class MainActivity :
     override fun onStart() {
         super.onStart()
         statusPanel.onStart()
+        if (!webViewDestroyed) binding.webView.resumeTimers()
         if (!serviceBound) bindRuntime()
     }
 
@@ -276,7 +279,8 @@ class MainActivity :
         serviceStateJob =
             lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    binder.state.collect(::renderState)
+                    launch { binder.state.collect { if (!binder.transferState.value.busy) renderState(it) } }
+                    launch { binder.transferState.collect(::renderTransfer) }
                 }
             }
     }
@@ -314,6 +318,9 @@ class MainActivity :
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         CookieManager.getInstance().setAcceptCookie(true)
         binding.webView.settings.applyLauncherSecurityPolicy(BuildConfig.VERSION_NAME)
+        // SillyTavern scales its text and layout together through the theme.
+        // System text zoom enlarges glyphs without resizing its CSS toolbars.
+        binding.webView.settings.textZoom = 100
         binding.webView.webViewClient = LauncherWebViewClient(this)
         binding.webView.webChromeClient = LauncherWebChromeClient(BuildConfig.DEBUG, this)
         binding.webView.setDownloadListener(
@@ -333,7 +340,7 @@ class MainActivity :
                     if (binding.webView.canGoBack()) {
                         binding.webView.goBack()
                     } else {
-                        finish()
+                        moveTaskToBack(true)
                     }
                 }
             },
@@ -464,6 +471,10 @@ class MainActivity :
         runOnUiThread(::openLogViewer)
     }
 
+    override fun onLauncherMenuRequested() {
+        runOnUiThread(::openLauncherMenu)
+    }
+
     // ------------------------------------------------------------------------
 
     private fun openLogViewer() {
@@ -485,43 +496,75 @@ class MainActivity :
             return
         }
 
-        statusPanel.render(
-            RuntimeStatusPresenter.busy(
-                stageRes = R.string.stage_verifying_backup,
-                detailRes = R.string.detail_verifying_backup,
-            ),
+        ContextCompat.startForegroundService(
+            this,
+            Intent(this, RuntimeForegroundService::class.java)
+                .setAction(RuntimeForegroundService.ACTION_IMPORT)
+                .putExtra(RuntimeForegroundService.EXTRA_URI, source.toString())
+                .putExtra(RuntimeForegroundService.EXTRA_ORIGIN, endpoint.baseUrl),
         )
-        lifecycleScope.launch {
-            runCatching {
-                downloadCoordinator.uploadImport(source, endpoint.baseUrl)
-            }.onSuccess { operationId ->
-                statusPanel.render(
-                    RuntimeStatusPresenter.busy(
-                        stageRes = R.string.stage_applying_backup,
-                        detailRes = R.string.detail_applying_backup,
-                    ),
-                )
-                binder.commitImport(operationId, ::handleImportResult)
-            }.onFailure {
-                showToast(
-                    getString(R.string.toast_import_failed, it.message.orEmpty()),
-                    long = true,
-                )
-                renderState(binder.state.value)
-            }
-        }
     }
 
-    private fun handleImportResult(result: ImportCommitResult) {
-        showToast(result.message, long = true)
+    private fun renderTransfer(task: TransferState) {
+        if (task.busy) {
+            statusPanel.render(RuntimeStatusPresenter.busy(R.string.transfer_title, R.string.transfer_wait))
+            binding.statusStage.text = task.message
+            return
+        }
+        if (task.id == 0L) return
         serviceBinder?.state?.value?.let(::renderState)
+        if (displayedTransferId == task.id) return
+        displayedTransferId = task.id
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (task.success == true) R.string.transfer_finished else R.string.transfer_failed)
+            .setMessage(task.message)
+            .setPositiveButton(android.R.string.ok) { _, _ -> serviceBinder?.acknowledgeTransfer(task.id) }
+            .setOnCancelListener { serviceBinder?.acknowledgeTransfer(task.id) }
+            .show()
+    }
+
+    @SuppressLint("WrongConstant") // Result flags are restricted to the two grants below.
+    private fun retainDocumentPermission(
+        intent: Intent?,
+        uri: Uri,
+    ) {
+        val flags = (intent?.flags ?: 0) and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        if (flags == 0) return
+        runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
+    }
+
+    private fun openLauncherMenu() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.launcher_menu)
+            .setItems(
+                arrayOf(
+                    getString(R.string.action_import_backup),
+                    getString(R.string.battery_dialog_title),
+                    getString(R.string.action_view_logs),
+                ),
+            ) { _, which ->
+                when (which) {
+                    0 ->
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.action_import_backup)
+                            .setMessage(R.string.import_confirmation)
+                            .setPositiveButton(R.string.action_continue) { _, _ -> onImportRequested() }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show()
+                    1 -> BatteryGuidance.showSettings(this)
+                    2 -> openLogViewer()
+                }
+            }.show()
     }
 
     private fun showLocalFailure(
         @StringRes titleRes: Int,
         detail: String? = null,
     ) {
-        retryAction = { serviceBinder?.retry() }
+        retryAction = {
+            val ready = serviceBinder?.state?.value as? RuntimeState.Ready
+            if (ready != null && !webViewDestroyed) loadEndpoint(ready.endpoint) else serviceBinder?.retry()
+        }
         statusPanel.setRetryLabel(R.string.action_retry)
         statusPanel.render(RuntimeStatusPresenter.localFailure(titleRes, detail))
     }

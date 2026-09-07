@@ -33,6 +33,7 @@ class RuntimeVersionRegistry {
     fun select(
         runtimeRoot: Path,
         candidateId: String,
+        nativeIdentity: String,
     ): RuntimeActivation {
         require(ID_PATTERN.matches(candidateId)) { "Invalid candidate runtime ID" }
         val versionsRoot = runtimeRoot.resolve("versions").createDirectories()
@@ -40,7 +41,12 @@ class RuntimeVersionRegistry {
             validVersion(versionsRoot, candidateId)
                 ?: throw IllegalStateException("Candidate runtime is not completely installed")
         val activeId = readId(runtimeRoot.resolve(ACTIVE_VERSION))
-        val activePath = activeId?.let { validVersion(versionsRoot, it) }
+        require(nativeIdentity.isNotBlank()) { "Native runtime identity is missing" }
+        atomicWrite(candidatePath.resolve(NATIVE_IDENTITY), nativeIdentity)
+        val activePath =
+            activeId
+                ?.let { validVersion(versionsRoot, it) }
+                ?.takeIf { readNativeIdentity(it) == nativeIdentity }
         val pending = readPending(runtimeRoot.resolve(PENDING_VERSION))
         val failedId = readId(runtimeRoot.resolve(FAILED_VERSION))
 
@@ -102,7 +108,9 @@ class RuntimeVersionRegistry {
         if (!activation.isCandidate ||
             activation.previousId == null ||
             activation.previousPath == null ||
-            !activation.previousPath.isDirectory()
+            validVersion(runtimeRoot.resolve("versions"), activation.previousId) != activation.previousPath ||
+            readNativeIdentity(activation.previousPath) == null ||
+            readNativeIdentity(activation.previousPath) != readNativeIdentity(activation.runtimePath)
         ) {
             return null
         }
@@ -171,6 +179,9 @@ class RuntimeVersionRegistry {
             .getOrNull()
             ?.takeIf(ID_PATTERN::matches)
     }
+
+    private fun readNativeIdentity(runtime: Path): String? =
+        runCatching { runtime.resolve(NATIVE_IDENTITY).readText() }.getOrNull()?.takeIf { it.isNotBlank() }
 
     private fun readPending(path: Path): Pending? {
         if (!path.toFile().isFile) return null
@@ -242,5 +253,6 @@ class RuntimeVersionRegistry {
         private const val PREVIOUS_VERSION = "previous-version"
         private const val PENDING_VERSION = "pending-version.json"
         private const val FAILED_VERSION = "failed-version"
+        private const val NATIVE_IDENTITY = ".native-identity"
     }
 }

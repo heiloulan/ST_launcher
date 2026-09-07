@@ -189,13 +189,13 @@ test('cancelled snapshot stops before copying user data', async t => {
     );
 });
 
-test('storage budget keeps the larger fixed or percentage reserve', async () => {
+test('storage reserve is capped and permits backups on large nearly full disks', async () => {
     const gibibyte = 1024 ** 3;
     const noSpace = {
         statfs: async () => ({
             bsize: 4096,
             blocks: (20 * gibibyte) / 4096,
-            bavail: gibibyte / 4096,
+            bavail: (32 * 1024 * 1024) / 4096,
         }),
     };
     assert.equal(await storageBudget(noSpace, '/unused'), 0);
@@ -207,7 +207,7 @@ test('storage budget keeps the larger fixed or percentage reserve', async () => 
             bavail: gibibyte / 4096,
         }),
     };
-    assert.equal(await storageBudget(available, '/unused'), gibibyte - 512 * 1024 * 1024);
+    assert.equal(await storageBudget(available, '/unused'), gibibyte - 64 * 1024 * 1024);
 });
 
 test('server plugin holds the single transaction slot until an export is removed', async t => {
@@ -236,12 +236,17 @@ test('server plugin holds the single transaction slot until an export is removed
     });
 
     const routes = new Map();
+    let authorize;
     const router = {
+        use: handler => { authorize = handler; },
         get: (route, handler) => routes.set(`GET ${route}`, handler),
         post: (route, handler) => routes.set(`POST ${route}`, handler),
         delete: (route, handler) => routes.set(`DELETE ${route}`, handler),
     };
     await init(router);
+    const rejected = fakeResponse();
+    authorize({ path: '/exports', user: { profile: { admin: false } } }, rejected, () => assert.fail('Non-admin passed the backup guard'));
+    assert.equal(rejected.statusCode, 403);
     const exportHandler = routes.get('POST /exports');
     const first = fakeResponse();
     const second = fakeResponse();
@@ -302,3 +307,31 @@ function fakeResponse() {
         },
     };
 }
+
+test('full backup round trips configuration and global extensions', async t => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'st-full-backup-'));
+    t.after(() => fs.rm(root, { recursive: true, force: true }));
+    const data = path.join(root, 'data');
+    const config = path.join(root, 'config');
+    const extensions = path.join(root, 'extensions');
+    await Promise.all([data, config, extensions].map(p => fs.mkdir(p)));
+    await fs.writeFile(path.join(data, 'chat.jsonl'), 'chat');
+    await fs.writeFile(path.join(config, 'config.yaml'), 'listen: false');
+    await fs.writeFile(path.join(extensions, 'manifest.json'), '{}');
+    const result = await prepareExport(data, path.join(root, 'export'), undefined, { config, 'global-extensions': extensions });
+    const operation = path.join(root, 'import');
+    await fs.mkdir(operation);
+    await stageImport(Readable.from(await fs.readFile(result.archivePath)), operation, crypto.randomUUID());
+    assert.equal(await fs.readFile(path.join(operation, 'candidate/config/config.yaml'), 'utf8'), 'listen: false');
+    assert.equal(await fs.readFile(path.join(operation, 'candidate/global-extensions/manifest.json'), 'utf8'), '{}');
+});
+
+test('duplicate directory entries are rejected without changing live data', async t => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'st-duplicate-'));
+    t.after(() => fs.rm(root, { recursive: true, force: true }));
+    const archive = await makeArchive([
+        { header: { name: 'data/', type: 'directory' } },
+        { header: { name: 'data/', type: 'directory' } },
+    ]);
+    await assert.rejects(stageImport(Readable.from(archive), root, crypto.randomUUID()), error => error.code === 'UNSAFE_ARCHIVE');
+});

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">酒馆直装版 · 数据救援</string>
+    <string name="title">用户数据救援</string>
+    <string name="subtitle">此版本不会启动 SillyTavern，只会只读导出应用私有目录中的用户数据。</string>
+    <string name="notice">请将导出的 .tar.gz 文件妥善保存。确认备份有效前，请勿卸载应用或清除应用数据。</string>
+    <string name="current_title">新版数据</string>
+    <string name="current_path">来源：user-data</string>
+    <string name="legacy_title">旧版数据</string>
+    <string name="legacy_path">来源：sillytavern/SillyTavern/data</string>
+    <string name="checking">正在检查…</string>
+    <string name="found">已找到：%1$d 个文件，%2$s</string>
+    <string name="not_found">未找到此目录</string>
+    <string name="scan_failed">检查失败：%1$s</string>
+    <string name="export_current">导出新版数据</string>
+    <string name="export_legacy">导出旧版数据</string>
+    <string name="choose_destination">请选择备份文件的保存位置</string>
+    <string name="exporting">正在导出：%1$d / %2$d 个文件（%3$s / %4$s）</string>
+    <string name="exporting_preparing">正在准备导出…</string>
+    <string name="export_succeeded">导出成功：%1$d 个文件，%2$s</string>
+    <string name="export_failed">导出失败：%1$s</string>
+    <string name="export_busy">数据正在导出，请勿关闭应用</string>
+</resources>

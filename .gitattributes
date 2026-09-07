@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Empty context lines in unified patches contain a significant leading space.
+tools/patches/*.patch whitespace=-blank-at-eol

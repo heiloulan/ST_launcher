@@ -1,10 +1,9 @@
-name: GitHub prerelease
+name: GitHub release
 
 on:
   push:
     tags:
-      - "v*-beta*"
-      - "v*-rc*"
+      - "v*"
 
 permissions:
   contents: write
@@ -17,56 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - id: runtime-version
-        name: Read pinned Node version
-        run: echo "node=$(jq -r '.node.version' runtime.lock.json)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ steps.runtime-version.outputs.node }}
-          cache: npm
-          cache-dependency-path: |
-            runtime/package-lock.json
-            runtime/plugin-st-launcher/package-lock.json
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - uses: android-actions/setup-android@v4
-
-      - uses: gradle/actions/setup-gradle@v5
-
-      - uses: actions/cache@v6
-        with:
-          path: .cache/runtime
-          key: runtime-${{ runner.os }}-${{ hashFiles('runtime.lock.json', 'runtime/**/package-lock.json') }}
-
-      - name: Build and verify release
-        run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
-          npm ci --prefix runtime
-          npm ci --prefix runtime/plugin-st-launcher
-          python -m pip install ruff==0.12.5
-          npm --prefix runtime run lint
-          node --test tests/launcher-plugin.test.mjs
-          python -m unittest discover -s tests
-          ruff check tools tests
-          ruff format --check tools tests
-          python tools/build_runtime.py
-          cd android
-          ./gradlew \
-            :runtime-core:check \
-            :app:spotlessCheck \
-            :app:testDebugUnitTest \
-            :app:compileDebugAndroidTestKotlin \
-            :app:lintDebug \
-            :app:assembleRelease
+      - uses: ./.github/actions/build
 
       - name: Sign APK
         env:
@@ -85,12 +35,11 @@ jobs:
             --out "ST-Launcher-${GITHUB_REF_NAME}.apk" \
             android/app/build/outputs/apk/release/app-release-unsigned.apk
           apksigner verify --verbose "ST-Launcher-${GITHUB_REF_NAME}.apk"
-          python tools/verify_apk.py "ST-Launcher-${GITHUB_REF_NAME}.apk"
 
       - uses: softprops/action-gh-release@v3
         with:
-          prerelease: true
-          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body_path: .github/RELEASE_NOTES.md
           fail_on_unmatched_files: true
           files: |
             ST-Launcher-${{ github.ref_name }}.apk

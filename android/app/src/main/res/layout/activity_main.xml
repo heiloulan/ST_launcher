@@ -130,6 +130,15 @@
             android:text="@string/action_view_logs"
             android:textColor="@color/text_tertiary"
             android:textSize="13sp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/launcherMenuButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="bottom|start"
+            android:contentDescription="@string/launcher_menu"
+            android:text="@string/menu_symbol"
+            android:alpha="0.75"
+            android:padding="0dp" />
     </FrameLayout>
-
 </FrameLayout>

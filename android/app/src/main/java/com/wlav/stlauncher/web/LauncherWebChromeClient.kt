@@ -58,17 +58,24 @@ class LauncherWebChromeClient(
         params: FileChooserParams?,
         allowMultiple: Boolean,
     ): Intent {
-        val acceptedMimeTypes =
+        val accepts =
             params
                 ?.acceptTypes
                 .orEmpty()
+                .flatMap { it.split(',') }
+                .map(String::trim)
+        // A filename extension may have no Android MIME mapping (.charx, .jsonl).
+        // Keep the picker open to all files when any such suffix is requested.
+        val hasUnmappedSuffix = accepts.any { it.startsWith('.') }
+        val acceptedMimeTypes =
+            accepts
                 .map(String::trim)
                 .filter { MIME_PATTERN.matches(it) }
                 .distinct()
         return Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = acceptedMimeTypes.singleOrNull() ?: "*/*"
-            if (acceptedMimeTypes.size > 1) {
+            type = if (hasUnmappedSuffix) "*/*" else acceptedMimeTypes.singleOrNull() ?: "*/*"
+            if (!hasUnmappedSuffix && acceptedMimeTypes.size > 1) {
                 putExtra(Intent.EXTRA_MIME_TYPES, acceptedMimeTypes.toTypedArray())
             }
             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)

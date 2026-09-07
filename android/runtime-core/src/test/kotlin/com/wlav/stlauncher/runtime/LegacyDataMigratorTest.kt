@@ -53,7 +53,7 @@ class LegacyDataMigratorTest {
                 journal = root.resolve("migration.journal"),
             ),
         )
-        assertFalse(legacyData.toFile().exists())
+        assertTrue(legacyData.toFile().exists())
         assertEquals(
             """{"mes":"hello"}""",
             targetData.resolve("default-user/chats/chat.jsonl").readText(),
@@ -222,7 +222,7 @@ class LegacyDataMigratorTest {
     }
 
     @Test
-    fun `commit resumes an interrupted legacy cleanup`() {
+    fun `commit preserves the remaining source after an interrupted old cleanup`() {
         val legacy = root.resolve("legacy/data").createDirectories()
         legacy.resolve("partial").writeText("preserve until commit")
         val target = root.resolve("new/user-data").createDirectories()
@@ -237,7 +237,7 @@ class LegacyDataMigratorTest {
             ),
         )
 
-        assertFalse(legacy.toFile().exists())
+        assertTrue(legacy.toFile().exists())
         assertEquals("current", target.resolve("verified").readText())
         assertEquals("committed", journal.readText())
     }

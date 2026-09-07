@@ -3,7 +3,7 @@ import { LauncherError } from './errors.js';
 
 export const MAXIMUM_ENTRIES = 200_000;
 export const MAXIMUM_PATH_LENGTH = 512;
-export const MINIMUM_FREE_BYTES = 512 * 1024 * 1024;
+export const MINIMUM_FREE_BYTES = 64 * 1024 * 1024;
 
 export function requireOperationId(value) {
     if (!/^[0-9a-fA-F-]{36}$/.test(value)) {
@@ -23,8 +23,10 @@ export function requireSafeBackupPath(value) {
     if (normalized !== value.replace(/\/+$/, '')
         || normalized === '..'
         || normalized.startsWith('../')
-        || (normalized !== 'data' && !normalized.startsWith('data/'))) {
-        throw new LauncherError('UNSAFE_ARCHIVE', `Backup entry is outside data/: ${value}`, 400);
+        || !(['data', 'global-extensions'].some(root => normalized === root || normalized.startsWith(`${root}/`))
+            || normalized === 'config' || normalized === 'config/config.yaml'
+            || normalized === 'rescue-report.json')) {
+        throw new LauncherError('UNSAFE_ARCHIVE', `Backup entry is outside supported backup roots: ${value}`, 400);
     }
     return normalized;
 }
@@ -37,6 +39,6 @@ export async function storageBudget(fsPromises, directory) {
     const blockSize = Number(stats.bsize);
     const totalBytes = Number(stats.blocks) * blockSize;
     const availableBytes = Number(stats.bavail) * blockSize;
-    const reserveBytes = Math.max(MINIMUM_FREE_BYTES, Math.floor(totalBytes / 10));
+    const reserveBytes = Math.max(MINIMUM_FREE_BYTES, Math.min(512 * 1024 * 1024, Math.floor(totalBytes / 100)));
     return Math.max(0, availableBytes - reserveBytes);
 }

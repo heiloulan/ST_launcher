@@ -1,0 +1,92 @@
+name: Rescue APK test build
+
+on:
+  push:
+    tags:
+      - "rescue-test-*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v4
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Test and build rescue APK
+        working-directory: android
+        run: |
+          ./gradlew \
+            :rescue:testDebugUnitTest \
+            :rescue:lintDebug \
+            :rescue:assembleRelease
+
+      - name: Sign rescue APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ST_LAUNCHER_KEYSTORE_B64 }}
+          KEY_ALIAS: ${{ secrets.ST_LAUNCHER_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.ST_LAUNCHER_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ST_LAUNCHER_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64"
+          test -n "$KEY_ALIAS"
+          test -n "$STORE_PASSWORD"
+          test -n "$KEY_PASSWORD"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/st-launcher.jks"
+          apksigner sign \
+            --ks "$RUNNER_TEMP/st-launcher.jks" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:STORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --out ST-Launcher-rescue-test.apk \
+            android/rescue/build/outputs/apk/release/rescue-release-unsigned.apk
+          apksigner verify --verbose --print-certs ST-Launcher-rescue-test.apk
+
+      - name: Verify update identity and rescue-only contents
+        run: |
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/official.apk" \
+            https://github.com/heiloulan/ST_launcher/releases/download/v0.26/ST-Launcher-v0.26.apk
+          official_digest="$({ apksigner verify --print-certs "$RUNNER_TEMP/official.apk"; } \
+            | awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print $2; exit}')"
+          rescue_digest="$({ apksigner verify --print-certs ST-Launcher-rescue-test.apk; } \
+            | awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print $2; exit}')"
+          test -n "$official_digest"
+          test "$rescue_digest" = "$official_digest"
+
+          test "$(apkanalyzer manifest application-id ST-Launcher-rescue-test.apk)" = \
+            "com.wlav.stlauncher"
+          test "$(apkanalyzer manifest version-code ST-Launcher-rescue-test.apk)" = "27"
+          if unzip -Z1 ST-Launcher-rescue-test.apk | grep -Eq \
+            '^(assets/runtime|lib/.*/libstnode\.so)'; then
+            echo "Rescue APK unexpectedly contains the SillyTavern runtime" >&2
+            exit 1
+          fi
+
+          sha256sum ST-Launcher-rescue-test.apk | tee ST-Launcher-rescue-test.apk.sha256
+          stat --printf='APK bytes: %s\n' ST-Launcher-rescue-test.apk
+          echo "Verified signer SHA-256: $rescue_digest"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: st-launcher-rescue-test
+          path: |
+            ST-Launcher-rescue-test.apk
+            ST-Launcher-rescue-test.apk.sha256
+          if-no-files-found: error
+          retention-days: 1

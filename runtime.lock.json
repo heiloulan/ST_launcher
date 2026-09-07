@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "runtimeId": "st-1.18.0-node-24.18.0-r1",
+  "runtimeId": "st-1.18.0-node-24.18.0-r5",
   "sillyTavern": {
     "version": "1.18.0",
     "commit": "51ad27fb86d39a3daca3adaa970375c9670c12df",
@@ -16,9 +16,9 @@
     "packages": [
       {
         "name": "nodejs-lts",
-        "version": "24.18.0",
-        "path": "pool/main/n/nodejs-lts/nodejs-lts_24.18.0_aarch64.deb",
-        "sha256": "6456b78aba9e0007de7a4c580d2b34bb3865145bebe06e75273152f8dcba4236"
+        "version": "24.18.0-1",
+        "path": "pool/main/n/nodejs-lts/nodejs-lts_24.18.0-1_aarch64.deb",
+        "sha256": "490f4d08c45b25a7ea7db6ee466ebb3ee61f07083260b85332704ed018f59a87"
       },
       {
         "name": "libc++",
@@ -58,9 +58,9 @@
       },
       {
         "name": "ca-certificates",
-        "version": "1:2026.07.16",
-        "path": "pool/main/c/ca-certificates/ca-certificates_1:2026.07.16_all.deb",
-        "sha256": "93dc49a8009012c29510081b8f07f30c57af9b10b1dae4f541231d8ee785b37a"
+        "version": "1:2026.08.13",
+        "path": "pool/main/c/ca-certificates/ca-certificates_1:2026.08.13_all.deb",
+        "sha256": "8e894fb885da738b4ca9a7932703e414d730fa32e78aba33046a747822547d5a"
       },
       {
         "name": "resolv-conf",
@@ -70,9 +70,9 @@
       },
       {
         "name": "termux-licenses",
-        "version": "2.1",
-        "path": "pool/main/t/termux-licenses/termux-licenses_2.1_all.deb",
-        "sha256": "ee66487982438cce341cd232c5a9ea5f379cff66e8d2cea296ccef50b05d755b"
+        "version": "2.2",
+        "path": "pool/main/t/termux-licenses/termux-licenses_2.2_all.deb",
+        "sha256": "a3265cd1cf7d04754f2fb683eaf5b21918263792fd714457127900c1d6d9bcd9"
       }
     ]
   },
@@ -88,5 +88,43 @@
       "taffydb@2.6.2": "BSD-2-Clause"
     },
     "maximumBundleBytes": 230686720
-  }
+  },
+  "extensions": [
+    {
+      "name": "JS-Slash-Runner",
+      "version": "4.9.5",
+      "commit": "af21bee2aadef5bf384f618e3456ff15ba9c431d",
+      "archiveUrl": "https://codeload.github.com/N0VI028/JS-Slash-Runner/tar.gz/af21bee2aadef5bf384f618e3456ff15ba9c431d",
+      "sha256": "078a18e1f784ae8cb663cb3ed82a97ef2d092f93673b2abb1cf7a66a059111dd",
+      "repository": "https://github.com/N0VI028/JS-Slash-Runner",
+      "license": "Aladdin",
+      "browserPackages": [
+        {
+          "name": "vue",
+          "version": "3.5.42",
+          "archiveUrl": "https://registry.npmjs.org/vue/-/vue-3.5.42.tgz",
+          "sha256": "f0eba09abfc441bc0108b44259376d6857fede9b0adf5d408e8807d5b4b49d6b",
+          "asset": "dist/vue.runtime.global.prod.js",
+          "license": "MIT"
+        },
+        {
+          "name": "vue-router",
+          "version": "5.3.1",
+          "archiveUrl": "https://registry.npmjs.org/vue-router/-/vue-router-5.3.1.tgz",
+          "sha256": "bdc7d409f132c8d08789dc9ee39834f8129f48d2f8c554c4f55511cf7d0ae43b",
+          "asset": "dist/vue-router.global.prod.js",
+          "license": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "ST-Prompt-Template",
+      "version": "1.15.16.0",
+      "commit": "9bb855a8deacea34f12132f78629965b87b68127",
+      "archiveUrl": "https://codeload.github.com/zonde306/ST-Prompt-Template/tar.gz/9bb855a8deacea34f12132f78629965b87b68127",
+      "sha256": "4eb351ccc4baa4f863ba92e0a6f3836e0ee6276377f133e33458fe9a6582778d",
+      "repository": "https://github.com/zonde306/ST-Prompt-Template",
+      "license": "AGPL-3.0-only"
+    }
+  ]
 }

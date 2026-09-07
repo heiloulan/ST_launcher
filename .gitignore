@@ -1,13 +1,17 @@
 # Android and Gradle
 android/.gradle/
+android/.kotlin/
 android/.idea/
 android/local.properties
 android/**/build/
 *.iml
 *.apk
 *.aab
+*.idsig
+/dist/
 
 # Local signing material must stay outside version control
+/.signing/
 *.jks
 *.keystore
 android/signing.properties
@@ -19,6 +23,7 @@ runtime/android-assets/THIRD_PARTY_NOTICES.txt
 runtime/generated/
 
 # Local caches and temporary files
+/.local/
 .cache/
 tmp/
 *.part

@@ -4,7 +4,6 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
 import java.util.UUID
@@ -31,8 +30,8 @@ interface LegacyDataMigrator {
     )
 
     /**
-     * Retires the verified legacy copy only after the caller has completed its
-     * runtime health check. Returns true when a pending migration was committed.
+     * Records a healthy migration. The original copy remains available for
+     * rescue until the user explicitly chooses to remove it.
      */
     fun commit(
         legacyData: Path,
@@ -79,22 +78,24 @@ class JournaledLegacyDataMigrator(
             listDirectories(legacyData).forEach { source ->
                 staging.resolve(legacyData.relativize(source)).createDirectories()
             }
+            val copiedFiles = mutableMapOf<Path, CopiedFile>()
             files.forEachIndexed { index, source ->
                 val relative = legacyData.relativize(source)
                 val destination = staging.resolve(relative)
                 destination.parent.createDirectories()
-                stableCopy(source, destination)
+                copiedFiles[relative] = stableCopy(source, destination)
                 progress(((index + 1) * 100 / files.size.coerceAtLeast(1)).coerceIn(0, 100))
             }
 
             journal.writeText("verifying:${staging.name}")
-            verifyTrees(legacyData, staging)
+            verifyTrees(legacyData, staging, copiedFiles)
 
             if (!targetConfig.exists() &&
                 legacyConfig != null &&
                 Files.isRegularFile(legacyConfig, LinkOption.NOFOLLOW_LINKS)
             ) {
-                stableCopy(legacyConfig, configStaging)
+                val copiedConfig = stableCopy(legacyConfig, configStaging)
+                if (sha256(configStaging) != copiedConfig.digest) throw IOException("Migrated config verification failed")
                 RuntimeBundleInstaller.atomicMove(configStaging, targetConfig)
             }
             RuntimeBundleInstaller.atomicMove(staging, targetData)
@@ -144,31 +145,20 @@ class JournaledLegacyDataMigrator(
         if (!Files.isDirectory(targetData, LinkOption.NOFOLLOW_LINKS)) {
             return false
         }
-        val legacyExists = Files.exists(legacyData, LinkOption.NOFOLLOW_LINKS)
         if (state == "committed") {
-            return !legacyExists
+            return true
         }
         if (state != "complete" && state != "committing") {
             return false
         }
-        if (legacyExists &&
-            !Files.isDirectory(legacyData, LinkOption.NOFOLLOW_LINKS)
-        ) {
-            throw IOException("Legacy data path is not a directory")
-        }
-
-        journal.writeText("committing")
-        if (legacyExists) {
-            RuntimeBundleInstaller.safeDeleteTree(legacyData, legacyData.parent)
-        }
-        journal.writeText("committed")
+        writeAtomicText(journal, "committed")
         return true
     }
 
     private fun stableCopy(
         source: Path,
         destination: Path,
-    ) {
+    ): CopiedFile {
         repeat(maximumCopyAttempts) { attempt ->
             val before =
                 Files.readAttributes(
@@ -181,13 +171,20 @@ class JournaledLegacyDataMigrator(
             }
 
             val temporary = destination.resolveSibling(".${destination.name}.part")
-            Files.copy(
-                source,
-                temporary,
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.COPY_ATTRIBUTES,
-                LinkOption.NOFOLLOW_LINKS,
-            )
+            val digest = MessageDigest.getInstance("SHA-256")
+            var copied = 0L
+            Files.newInputStream(source, LinkOption.NOFOLLOW_LINKS).use { input ->
+                Files.newOutputStream(temporary).use { output ->
+                    val buffer = ByteArray(128 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        output.write(buffer, 0, read)
+                        digest.update(buffer, 0, read)
+                        copied += read
+                    }
+                }
+            }
             val after =
                 Files.readAttributes(
                     source,
@@ -197,31 +194,46 @@ class JournaledLegacyDataMigrator(
 
             if (before.size() == after.size() &&
                 before.lastModifiedTime() == after.lastModifiedTime() &&
-                sha256(source) == sha256(temporary)
+                copied == before.size()
             ) {
+                Files.setLastModifiedTime(temporary, before.lastModifiedTime())
                 RuntimeBundleInstaller.atomicMove(temporary, destination)
-                return
+                return CopiedFile(before.size(), before.lastModifiedTime().toMillis(), digest.digest().toHex())
             }
             Files.deleteIfExists(temporary)
             if (attempt == maximumCopyAttempts - 1) {
                 throw IOException("Source file kept changing during migration: $source")
             }
         }
+        throw IOException("Unable to copy $source")
     }
+
+    private data class CopiedFile(
+        val size: Long,
+        val modified: Long,
+        val digest: String,
+    )
+
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     private fun verifyTrees(
         source: Path,
         destination: Path,
+        copiedFiles: Map<Path, CopiedFile>,
     ) {
         val sourceFiles = listRegularFiles(source)
         val destinationFiles = listRegularFiles(destination)
-        if (sourceFiles.size != destinationFiles.size) {
+        if (sourceFiles.size != destinationFiles.size || sourceFiles.map(source::relativize).toSet() != copiedFiles.keys) {
             throw IOException("Migrated data file count does not match")
         }
         sourceFiles.forEach { sourceFile ->
-            val targetFile = destination.resolve(source.relativize(sourceFile))
+            val relative = source.relativize(sourceFile)
+            val copied = copiedFiles.getValue(relative)
+            val current = Files.readAttributes(sourceFile, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+            val targetFile = destination.resolve(relative)
             if (!Files.isRegularFile(targetFile, LinkOption.NOFOLLOW_LINKS) ||
-                sha256(sourceFile) != sha256(targetFile)
+                current.size() != copied.size || current.lastModifiedTime().toMillis() != copied.modified ||
+                copied.digest != sha256(targetFile)
             ) {
                 throw IOException("Migrated data verification failed: $sourceFile")
             }

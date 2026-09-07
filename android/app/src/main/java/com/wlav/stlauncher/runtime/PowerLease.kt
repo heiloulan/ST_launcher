@@ -99,20 +99,21 @@ internal class RenewingLeaseController(
             if (!wifiLease.isHeld) wifiLease.acquire()
             renewalJob =
                 scope.launch {
-                    try {
-                        while (isActive) {
-                            delay(renewAfterMillis)
-                            wakeLease.acquire()
-                            // WifiLock has no timeout overload. Recycling it
-                            // gives it the same bounded lease semantics as the
-                            // timed WakeLock.
-                            if (wifiLease.isHeld) wifiLease.release()
-                            wifiLease.acquire()
+                    var nextRenewal = renewAfterMillis
+                    while (isActive) {
+                        delay(nextRenewal)
+                        synchronized(this@RenewingLeaseController) {
+                            try {
+                                wakeLease.acquire()
+                                if (!wifiLease.isHeld) wifiLease.acquire()
+                                nextRenewal = renewAfterMillis
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                releaseHandles()
+                                nextRenewal = minOf(renewAfterMillis, 30_000)
+                            }
                         }
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Throwable) {
-                        release()
                     }
                 }
         } catch (error: Throwable) {
@@ -125,7 +126,14 @@ internal class RenewingLeaseController(
     fun release() {
         renewalJob?.cancel()
         renewalJob = null
-        if (wakeLease.isHeld) wakeLease.release()
-        if (wifiLease.isHeld) wifiLease.release()
+        releaseHandles()
+    }
+
+    private fun releaseHandles() {
+        try {
+            if (wakeLease.isHeld) wakeLease.release()
+        } finally {
+            if (wifiLease.isHeld) wifiLease.release()
+        }
     }
 }

@@ -4,7 +4,7 @@ import js from '@eslint/js';
 export default [
     js.configs.recommended,
     {
-        files: ['plugin-st-launcher/*.js'],
+        files: ['plugin-st-launcher/*.js', 'upstream/*.js'],
         languageOptions: {
             ecmaVersion: 2024,
             sourceType: 'module',

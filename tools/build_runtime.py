@@ -30,6 +30,7 @@ GENERATED_ROOT = ROOT / "runtime" / "generated"
 JNI_ROOT = GENERATED_ROOT / "jniLibs" / "arm64-v8a"
 PLUGIN_SOURCE = ROOT / "runtime" / "plugin-st-launcher"
 EXTENSION_SOURCE = ROOT / "runtime" / "frontend-extension"
+UPSTREAM_ADAPTERS = ROOT / "runtime" / "upstream"
 SYSTEM_ANDROID_LIBRARIES = {
     "libandroid.so",
     "libc.so",
@@ -88,6 +89,14 @@ def validate_lock(lock: dict) -> None:
         raise RuntimeError("SillyTavern license is missing")
     if not str(lock["node"].get("license", "")).strip():
         raise RuntimeError("Node.js license is missing")
+    for extension in lock.get("extensions", []):
+        if (
+            not re.fullmatch(r"[A-Za-z0-9._-]+", extension["name"])
+            or not re.fullmatch(r"[0-9a-f]{40}", extension["commit"])
+            or extension["commit"] not in extension["archiveUrl"]
+            or not digest_pattern.fullmatch(extension["sha256"])
+        ):
+            raise RuntimeError("Preinstalled extension is not pinned to an immutable archive")
     expected_runtime_prefix = (
         f"st-{lock['sillyTavern']['version']}-node-{lock['node']['version']}-r"
     )
@@ -147,8 +156,14 @@ def download(url: str, destination: Path, expected_sha256: str) -> Path:
         url,
         headers={"User-Agent": "ST Launcher reproducible runtime builder"},
     )
-    with urllib.request.urlopen(request, timeout=60) as response, temporary.open("wb") as output:
-        shutil.copyfileobj(response, output, length=1024 * 1024)
+    try:
+        with (
+            urllib.request.urlopen(request, timeout=60) as response,
+            temporary.open("wb") as output,
+        ):
+            shutil.copyfileobj(response, output, length=1024 * 1024)
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"Download failed ({error.code}): {url}") from error
     actual = sha256(temporary)
     if actual != expected_sha256:
         temporary.unlink(missing_ok=True)
@@ -198,6 +213,108 @@ def install_production_dependencies(source_root: Path) -> None:
     if extension_target.exists():
         shutil.rmtree(extension_target)
     shutil.copytree(EXTENSION_SOURCE, extension_target)
+
+
+def install_launcher_extensions(source_root: Path, lock: dict) -> None:
+    run(
+        [
+            "patch",
+            "--batch",
+            "--forward",
+            "-p1",
+            "-i",
+            str(ROOT / "tools/patches/sillytavern-launcher.patch"),
+        ],
+        source_root,
+    )
+    shutil.copy2(
+        UPSTREAM_ADAPTERS / "launcher-extensions.js", source_root / "src/git/launcher-extensions.js"
+    )
+    extensions_root = source_root / "public/scripts/extensions/third-party"
+    for extension in lock.get("extensions", []):
+        archive = download(
+            extension["archiveUrl"],
+            CACHE_ROOT / f"{extension['name']}-{extension['commit']}.tar.gz",
+            extension["sha256"],
+        )
+        with tempfile.TemporaryDirectory(prefix="st-extension-") as temporary:
+            extracted = Path(temporary)
+            safe_extract_tar(archive, extracted)
+            directories = [entry for entry in extracted.iterdir() if entry.is_dir()]
+            if len(directories) != 1:
+                raise RuntimeError("Unexpected extension archive layout")
+            source = directories[0]
+            manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+            if manifest.get("version") != extension["version"]:
+                raise RuntimeError(f"Extension version mismatch: {extension['name']}")
+            for asset in (manifest.get("js"), manifest.get("css")):
+                if asset and (
+                    not (source / asset).is_file()
+                    or not (source / asset).resolve().is_relative_to(source.resolve())
+                ):
+                    raise RuntimeError(
+                        f"Extension declared asset is missing: {extension['name']}/{asset}"
+                    )
+            target = extensions_root / extension["name"]
+            shutil.copytree(
+                source,
+                target,
+                ignore=shutil.ignore_patterns(
+                    ".git", ".github", "node_modules", "src", "@types", "*.map"
+                ),
+            )
+            if extension["name"] == "JS-Slash-Runner":
+                localize_helper_assets(source_root, source, target, extension)
+            manifest["auto_update"] = False
+            (target / "manifest.json").write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+
+
+def localize_helper_assets(application: Path, source: Path, target: Path, extension: dict) -> None:
+    """Keep the bundled helper's iframe dependencies available on first offline launch."""
+    cdn = "https://testingcf.jsdelivr.net/"
+    local_root = "/scripts/extensions/third-party/JS-Slash-Runner/lib"
+    replacements = {
+        cdn + "npm/jquery/dist/jquery.min.js": "/lib/jquery-3.5.1.min.js",
+        cdn + "npm/jquery-ui/dist/jquery-ui.min.js": "/lib/jquery-ui.min.js",
+        cdn + "npm/jquery-ui-touch-punch": "/lib/jquery.ui.touch-punch.min.js",
+        cdn + "npm/jquery-ui/themes/base/theme.min.css": "/css/jquery-ui.min.css",
+        cdn + "npm/@fortawesome/fontawesome-free/css/all.min.css": "/css/fontawesome.min.css",
+        cdn + "gh/N0VI028/JS-Slash-Runner/src/iframe/node_modules/log.js": local_root + "/log.js",
+    }
+    for local in replacements.values():
+        if (
+            local.startswith(("/lib/", "/css/"))
+            and not (application / "public" / local[1:]).is_file()
+        ):
+            raise RuntimeError(f"Missing SillyTavern browser asset: {local}")
+    shutil.copy2(source / "src/iframe/node_modules/log.js", target / "lib/log.js")
+    for package in extension["browserPackages"]:
+        archive = download(
+            package["archiveUrl"],
+            CACHE_ROOT / f"{package['name']}-{package['version']}.tar.gz",
+            package["sha256"],
+        )
+        with tempfile.TemporaryDirectory(prefix="helper-browser-") as temporary:
+            extracted = Path(temporary)
+            safe_extract_tar(archive, extracted)
+            root = extracted / "package"
+            vendor = target / "lib/vendor" / package["name"]
+            vendor.mkdir(parents=True, exist_ok=True)
+            asset = Path(package["asset"]).name
+            shutil.copy2(root / package["asset"], vendor / asset)
+            shutil.copy2(root / "LICENSE", vendor / "LICENSE")
+            replacements[cdn + f"npm/{package['name']}/dist/{asset.replace('.js', '.min.js')}"] = (
+                f"{local_root}/vendor/{package['name']}/{asset}"
+            )
+    bundle = target / "dist/index.js"
+    contents = bundle.read_text(encoding="utf-8")
+    for remote, local in replacements.items():
+        if remote not in contents:
+            raise RuntimeError(f"Pinned helper dependency changed: {remote}")
+        contents = contents.replace(remote, local)
+    bundle.write_text(contents, encoding="utf-8")
 
 
 def prune_runtime(source_root: Path) -> None:
@@ -516,6 +633,16 @@ def create_notices(application_root: Path, lock: dict) -> str:
     lines.extend(
         f"- {package['name']} {package['version']}" for package in lock["node"]["packages"]
     )
+    lines.extend(["", "Preinstalled extensions (license texts included with each extension):"])
+    lines.extend(
+        f"- {item['name']} {item['version']} — {item['license']} — {item['repository']}"
+        for item in lock.get("extensions", [])
+    )
+    lines.extend(
+        f"- {package['name']} {package['version']} — {package['license']} (offline browser asset)"
+        for extension in lock.get("extensions", [])
+        for package in extension.get("browserPackages", [])
+    )
     lines.extend(
         [
             "",
@@ -554,6 +681,25 @@ def create_sbom(application_root: Path, lock: dict) -> dict:
             ],
         }
         for package in lock["node"]["packages"]
+    )
+    components.extend(
+        {
+            "type": "library",
+            "name": item["name"],
+            "version": item["version"],
+            "licenses": [{"license": {"name": item["license"]}}],
+        }
+        for item in lock.get("extensions", [])
+    )
+    components.extend(
+        {
+            "type": "library",
+            "name": package["name"],
+            "version": package["version"],
+            "licenses": [{"license": {"id": package["license"]}}],
+        }
+        for extension in lock.get("extensions", [])
+        for package in extension.get("browserPackages", [])
     )
     for package_json, package in iter_npm_packages(application_root):
         license_name = package_license(package_json, package, overrides)
@@ -636,6 +782,7 @@ def build(lock: dict) -> None:
             raise RuntimeError("SillyTavern package version does not match the lock")
 
         install_production_dependencies(source_root)
+        install_launcher_extensions(source_root, lock)
         prune_runtime(source_root)
         verify_media_binary_independence(source_root)
 

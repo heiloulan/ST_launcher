@@ -55,7 +55,6 @@
     <string name="toast_save_dialog_busy">已有保存窗口正在等待处理</string>
     <string name="toast_save_dialog_failed">无法打开保存窗口：%1$s</string>
     <string name="toast_import_picker_failed">无法打开备份文件选择器</string>
-    <string name="toast_import_failed">导入失败：%1$s</string>
     <string name="toast_server_not_ready">服务器尚未就绪</string>
     <string name="toast_external_link_failed">无法打开外部链接</string>
     <string name="toast_link_blocked">已阻止不受支持的链接</string>
@@ -65,11 +64,8 @@
 
     <!-- Backup details -->
     <string name="detail_verifying_backup">当前数据不会在验证完成前被修改</string>
-    <string name="detail_applying_backup">如启动检查失败，将自动恢复原数据</string>
     <string name="import_succeeded">数据导入成功</string>
     <string name="import_health_check_failed">导入后的数据未通过启动检查</string>
-    <string name="import_rolled_back">%1$s；已恢复原数据</string>
-    <string name="import_failed_generic">导入失败</string>
     <string name="import_original_kept">%1$s；原数据已保留</string>
 
     <!-- Battery guidance -->
@@ -109,4 +105,20 @@
     <string name="download_empty_response">服务器返回了空文件</string>
     <string name="download_http_error">服务器返回 %1$d</string>
     <string name="download_http_error_detail">服务器返回 %1$d：%2$s</string>
+    <string name="launcher_menu">启动器菜单</string>
+    <string name="action_continue">继续</string>
+    <string name="action_stop_runtime">停止酒馆</string>
+    <string name="transfer_title">正在处理文件</string>
+    <string name="transfer_wait">任务将在后台继续，请等待完成。</string>
+    <string name="transfer_saving">正在保存文件</string>
+    <string name="transfer_finished">文件处理完成</string>
+    <string name="transfer_failed">文件处理未完成</string>
+    <string name="transfer_interrupted">上次文件任务因应用退出而中断。请重新导出或导入，原始数据仍在应用内；未完成的导出文件不能用于恢复。</string>
+    <string name="transfer_incomplete_file">所选存储位置不支持清理，请手动删除未完成的输出文件。</string>
+    <string name="import_recovery_pending">导入恢复尚未完成，原始副本保留在应用内。请保留应用和日志，以便排查，勿卸载：%1$s</string>
+    <string name="battery_exempt">系统当前已允许忽略电池优化。部分手机还需要在应用设置中允许后台活动。</string>
+    <string name="battery_not_exempt">系统当前仍会对应用进行电池优化。可在应用设置中允许后台活动；从设置返回后重新打开此页即可查看最新状态。</string>
+    <string name="action_import_backup">导入备份</string>
+    <string name="import_confirmation">导入会替换当前酒馆数据。请先导出备份；新数据启动检查失败时会尝试恢复导入前的副本。</string>
+    <string name="menu_symbol" translatable="false">⋮</string>
 </resources>

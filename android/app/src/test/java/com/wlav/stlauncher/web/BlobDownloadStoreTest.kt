@@ -36,6 +36,22 @@ class BlobDownloadStoreTest {
         }
 
     @Test
+    fun `recreation retains completed file while removing abandoned chunks`() =
+        runTest {
+            val store = BlobDownloadStore(temporaryDirectory, reserveBytes = 0)
+            store.begin("ready", "card.json", "application/json", 2)
+            store.append("ready", 0, Base64.getEncoder().encodeToString("{}".toByteArray()))
+            val pending = store.finish("ready")
+            val orphan = File(temporaryDirectory, "blob-downloads/abandoned.part").apply { writeText("incomplete") }
+            File(pending.path).setLastModified(0)
+
+            BlobDownloadStore(temporaryDirectory, reserveBytes = 0, retainedPath = pending.path)
+
+            assertEquals("{}", File(pending.path).readText())
+            assertFalse(orphan.exists())
+        }
+
+    @Test
     fun `rejects malformed or out of order chunks`() =
         runTest {
             val store = BlobDownloadStore(temporaryDirectory, reserveBytes = 0)

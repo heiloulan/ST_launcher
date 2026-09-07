@@ -21,6 +21,26 @@ object BatteryGuidance {
     private const val PREFERENCES = "launcher_preferences"
     private const val KEY_SHOWN = "battery_guidance_shown"
 
+    fun showSettings(activity: Activity) {
+        val exempt =
+            activity
+                .getSystemService(PowerManager::class.java)
+                .isIgnoringBatteryOptimizations(activity.packageName)
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.battery_dialog_title)
+            .setMessage(if (exempt) R.string.battery_exempt else R.string.battery_not_exempt)
+            .setPositiveButton(R.string.action_open_settings) { _, _ -> openSettings(activity) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun openSettings(activity: Activity) {
+        activity.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData("package:${activity.packageName}".toUri()),
+        )
+    }
+
     fun showOnce(activity: Activity) {
         val preferences = activity.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
         if (preferences.getBoolean(KEY_SHOWN, false)) return
@@ -34,12 +54,7 @@ object BatteryGuidance {
             .setTitle(R.string.battery_dialog_title)
             .setMessage(R.string.battery_dialog_message)
             .setPositiveButton(R.string.action_open_settings) { _, _ ->
-                runCatching {
-                    activity.startActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                            .setData("package:${activity.packageName}".toUri()),
-                    )
-                }
+                openSettings(activity)
             }.setNegativeButton(R.string.action_later, null)
             .setCancelable(true)
             .show()

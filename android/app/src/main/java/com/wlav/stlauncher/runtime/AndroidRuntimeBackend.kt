@@ -1,7 +1,11 @@
 package com.wlav.stlauncher.runtime
 
+import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
+import android.os.PowerManager
 import android.util.Log
+import android.webkit.WebView
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,8 +44,11 @@ class AndroidRuntimeBackend(
             operationsRoot = operationRoot,
             liveData = dataRoot,
             journal = noBackupRoot.resolve("import.journal"),
+            configRoot = configFile.parent,
+            extensionsRoot = filesRoot.resolve("global-extensions"),
         )
     private val logStore = RotatingLogStore(noBackupRoot.resolve("logs").toFile())
+    private val eventStore = RotatingLogStore(noBackupRoot.resolve("logs/launcher").toFile(), maximumFileBytes = 256 * 1024)
     private val processLauncher =
         injectedProcessLauncher ?: LinkerNodeProcessLauncher(appContext, scope, logStore)
     private val manifest: RuntimeManifest by lazy {
@@ -62,6 +69,7 @@ class AndroidRuntimeBackend(
     override suspend fun prepare(reporter: PreparationReporter) =
         withContext(Dispatchers.IO) {
             reporter.report(PreparationStage.RECOVERING, null)
+            recordEvent("Preparing runtime ${manifest.runtimeId}; available=${appContext.filesDir.usableSpace}")
             runtimeRoot.createDirectories()
             operationRoot.createDirectories()
             installer.recover(runtimeRoot)
@@ -70,6 +78,33 @@ class AndroidRuntimeBackend(
             }
 
             migrator.recover(dataRoot, migrationJournal)
+
+            // Migrate mutable globals before a successful activation can prune runtimes.
+            val versions =
+                runtimeRoot
+                    .resolve("versions")
+                    .toFile()
+                    .listFiles()
+                    .orEmpty()
+                    .filter {
+                        it.isDirectory && !it.name.startsWith(".") &&
+                            !File(it, "app/src/git/launcher-extensions.js").isFile
+                    }
+            val activeId =
+                runtimeRoot
+                    .resolve("active-version")
+                    .toFile()
+                    .takeIf { it.isFile }
+                    ?.readText()
+                    ?.trim()
+            val extensionSources =
+                versions
+                    .sortedWith(
+                        compareByDescending<File> { it.name == activeId }.thenByDescending { it.lastModified() },
+                    ).map { "runtime-${it.name}" to it.toPath().resolve("app/public/scripts/extensions/third-party") } +
+                    listOf("legacy" to legacyRoot.resolve("public/scripts/extensions/third-party"))
+            PersistentExtensions(filesRoot.resolve("global-extensions"), noBackupRoot.resolve("migration/extensions"))
+                .migrate(extensionSources)
 
             reporter.report(PreparationStage.INSTALLING_RUNTIME, 0)
             val candidateRuntime =
@@ -84,7 +119,7 @@ class AndroidRuntimeBackend(
                 "Runtime installer returned an unexpected version"
             }
             runtimeActivation =
-                versionRegistry.select(runtimeRoot, manifest.versionHash)
+                versionRegistry.select(runtimeRoot, manifest.versionHash, manifest.nativeIdentity)
             val selectedRuntime =
                 runtimeActivation?.runtimePath
                     ?: throw IllegalStateException("Runtime activation was not selected")
@@ -102,6 +137,7 @@ class AndroidRuntimeBackend(
                     reporter.report(PreparationStage.MIGRATING_DATA, progress)
                 }
             Log.i(TAG, "Legacy migration result: $migration")
+            recordEvent("Legacy migration: $migration; selected runtime=${selectedRuntime.fileName}")
 
             reporter.report(PreparationStage.PREPARING_CONFIGURATION, null)
             Files.createDirectories(dataRoot)
@@ -210,7 +246,32 @@ class AndroidRuntimeBackend(
     fun readLogTail(
         maximumLines: Int = 200,
         maximumBytes: Int = 256 * 1024,
-    ): String = logStore.tail(maximumLines, maximumBytes)
+    ): String =
+        eventStore.tail(maximumLines / 3, maximumBytes / 3) + "\n" +
+            logStore.tail(maximumLines * 2 / 3, maximumBytes * 2 / 3)
+
+    fun recordEvent(message: String) {
+        runCatching { eventStore.openSession().use { it.append("${java.time.Instant.now()} $message") } }
+            .onFailure { Log.w(TAG, "Unable to write launcher event", it) }
+    }
+
+    fun recordEnvironment() {
+        recordEvent(
+            "Android=${Build.VERSION.SDK_INT}; WebView=${WebView.getCurrentWebViewPackage()?.versionName}; " +
+                "batteryExempt=${appContext.getSystemService(
+                    PowerManager::class.java,
+                ).isIgnoringBatteryOptimizations(appContext.packageName)}",
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val history =
+                appContext
+                    .getSystemService(ActivityManager::class.java)
+                    .getHistoricalProcessExitReasons(appContext.packageName, 0, 1)
+            history.firstOrNull()?.let {
+                recordEvent("Previous process exit: reason=${it.reason}; status=${it.status}; time=${it.timestamp}; ${it.description}")
+            }
+        }
+    }
 
     fun beginImportCommit(id: String): ImportTransactionManager.Transaction =
         importTransactions.begin(id).also { importAwaitingHealth = it }
@@ -235,7 +296,7 @@ class AndroidRuntimeBackend(
                     journal = migrationJournal,
                 )
             } catch (error: Throwable) {
-                Log.w(TAG, "Unable to retire the verified legacy data copy", error)
+                Log.w(TAG, "Unable to record the verified legacy migration", error)
                 false
             }
         if (committed || marker.exists()) {

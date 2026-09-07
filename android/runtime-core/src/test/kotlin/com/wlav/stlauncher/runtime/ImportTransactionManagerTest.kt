@@ -83,14 +83,14 @@ class ImportTransactionManagerTest {
     }
 
     @Test
-    fun `invalid and irrelevant journals are ignored`() {
+    fun `unreadable active journals stop recovery without changing data`() {
         val fixture = fixture()
         fixture.journal.writeText("not-json")
-        fixture.manager.recover()
+        assertThrows(IOException::class.java) { fixture.manager.recover() }
         assertEquals("original", fixture.live.resolve("value").readText())
 
         fixture.journal.writeText("""{"id":{},"state":"swapping"}""")
-        fixture.manager.recover()
+        assertThrows(IOException::class.java) { fixture.manager.recover() }
         assertEquals("original", fixture.live.resolve("value").readText())
 
         fixture.journal.writeText("""{"id":"${fixture.id}","state":"complete"}""")
@@ -172,6 +172,63 @@ class ImportTransactionManagerTest {
         assertThrows(IllegalArgumentException::class.java) {
             fixture.manager.rollback(forged)
         }
+        assertEquals("original", fixture.live.resolve("value").readText())
+    }
+
+    @Test
+    fun `journal failure after all swaps restores data configuration and extensions`() {
+        val fixture = fixture()
+        val config = root.resolve("config").createDirectories()
+        config.resolve("config.yaml").writeText("original-config")
+        val extensions = root.resolve("global-extensions")
+        fixture.operation
+            .resolve("candidate/config")
+            .createDirectories()
+            .resolve("config.yaml")
+            .writeText("imported-config")
+        fixture.operation
+            .resolve("candidate/global-extensions")
+            .createDirectories()
+            .resolve("extension")
+            .writeText("imported-extension")
+        val manager =
+            ImportTransactionManager(
+                fixture.operation.parent,
+                fixture.live,
+                fixture.journal,
+                config,
+                extensions,
+                journalWriter = { path, contents ->
+                    if (contents.contains("awaiting_health")) throw IOException("Injected journal write failure")
+                    writeAtomicText(path, contents)
+                },
+            )
+        val error =
+            assertThrows(ImportTransactionManager.ActivationException::class.java) {
+                manager.begin(fixture.id)
+            }
+        assertTrue(error.originalRestored)
+        assertEquals("original", fixture.live.resolve("value").readText())
+        assertEquals("original-config", config.resolve("config.yaml").readText())
+        assertFalse(extensions.toFile().exists())
+        manager.recover()
+        assertEquals("original", fixture.live.resolve("value").readText())
+    }
+
+    @Test
+    fun `crash recovery rolls back optional configuration with data`() {
+        val fixture = fixture()
+        val config = root.resolve("config").createDirectories()
+        config.resolve("config.yaml").writeText("original-config")
+        fixture.operation
+            .resolve("candidate/config")
+            .createDirectories()
+            .resolve("config.yaml")
+            .writeText("imported-config")
+        val manager = ImportTransactionManager(fixture.operation.parent, fixture.live, fixture.journal, config)
+        manager.begin(fixture.id)
+        ImportTransactionManager(fixture.operation.parent, fixture.live, fixture.journal, config).recover()
+        assertEquals("original-config", config.resolve("config.yaml").readText())
         assertEquals("original", fixture.live.resolve("value").readText())
     }
 

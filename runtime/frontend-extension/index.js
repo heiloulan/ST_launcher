@@ -23,10 +23,13 @@ jQuery(() => {
                 <div class="inline-drawer-content">
                     <div class="backend-panel">
                         <button id="st_launcher_export" class="backend-btn">
-                            <i class="fa fa-download"></i> 导出用户数据
+                            <i class="fa fa-download"></i> 导出完整备份
                         </button>
                         <button id="st_launcher_import" class="backend-btn">
-                            <i class="fa fa-upload"></i> 导入用户数据
+                            <i class="fa fa-upload"></i> 导入备份
+                        </button>
+                        <button id="st_launcher_repair_extension" class="backend-btn">
+                            <i class="fa fa-wrench"></i> 修复扩展安装
                         </button>
                         <button id="st_launcher_logs" class="backend-btn">
                             <i class="fa fa-terminal"></i> 查看服务器日志
@@ -40,6 +43,7 @@ jQuery(() => {
     $('#st_launcher_export').on('click', handleExport);
     $('#st_launcher_import').on('click', confirmImport);
     $('#st_launcher_logs').on('click', openLogViewer);
+    $('#st_launcher_repair_extension').on('click', repairExtension);
 });
 
 function nativeRequest(type, payload = {}) {
@@ -127,7 +131,7 @@ function confirmImport() {
     overlay.innerHTML = `
         <div class="import-confirm-dialog">
             <h3>确认导入</h3>
-            <p>备份会先在隔离目录中完成安全检查。只有检查通过后才替换当前数据；新数据无法启动时会自动回滚。</p>
+            <p>导入会替换当前数据，请先导出备份。备份先经过安全检查；新数据无法启动时会尝试恢复原副本，并报告恢复结果。</p>
             <div class="import-confirm-buttons">
                 <button class="confirm-no">取消</button>
                 <button class="confirm-yes">选择备份</button>
@@ -158,4 +162,17 @@ async function openLogViewer() {
     } catch (error) {
         toastr.error(error.message);
     }
+}
+
+async function repairExtension() {
+    const url = window.prompt('输入上次安装失败的扩展仓库 URL：');
+    if (!url) return;
+    const global = window.confirm('是否修复“为所有用户安装”的全局扩展？取消则处理当前用户的扩展。');
+    if (!window.confirm('将保留现有目录副本，并重新下载安装。继续吗？')) return;
+    try {
+        const result = await requestJson('/api/extensions/install', {
+            method: 'POST', body: JSON.stringify({ url, global, repair: true }),
+        });
+        toastr.success(result.preserved ? '安装完成，原目录副本已保留。请刷新页面。' : '安装完成，请刷新页面。');
+    } catch (error) { toastr.error(error.message); }
 }

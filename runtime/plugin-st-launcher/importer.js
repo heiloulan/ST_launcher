@@ -47,12 +47,17 @@ export async function stageImport(request, operationRoot, id) {
             }
 
             const normalized = requireSafeBackupPath(header.name);
-            if (!seen.add(normalized)) {
+            if (seen.has(normalized)) {
                 throw new LauncherError(
                     'UNSAFE_ARCHIVE',
                     `Backup contains a duplicate path: ${normalized}`,
                     400,
                 );
+            }
+            seen.add(normalized);
+            if ((['data', 'config', 'global-extensions'].includes(normalized) && header.type !== 'directory')
+                || (['config/config.yaml', 'rescue-report.json'].includes(normalized) && header.type !== 'file')) {
+                throw new LauncherError('UNSAFE_ARCHIVE', 'Backup entry has an invalid type', 400);
             }
             const target = path.resolve(candidateRoot, normalized);
             if (target !== path.resolve(candidateRoot)

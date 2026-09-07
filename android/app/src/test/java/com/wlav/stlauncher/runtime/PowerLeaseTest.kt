@@ -26,12 +26,12 @@ class PowerLeaseTest {
             advanceTimeBy(100)
             runCurrent()
             assertEquals(2, wake.acquireCount)
-            assertEquals(2, wifi.acquireCount)
+            assertEquals(1, wifi.acquireCount)
 
             controller.release()
             controller.release()
             assertEquals(1, wake.releaseCount)
-            assertEquals(2, wifi.releaseCount)
+            assertEquals(1, wifi.releaseCount)
             assertFalse(wake.isHeld)
             assertFalse(wifi.isHeld)
         }
@@ -55,10 +55,10 @@ class PowerLeaseTest {
     }
 
     @Test
-    fun `renewal failure releases both leases`() =
+    fun `renewal failure releases leases and retries while still requested`() =
         runTest {
-            val wake = FakeLease()
-            val wifi = FakeLease(failOnAcquire = 2)
+            val wake = FakeLease(failOnAcquire = 2)
+            val wifi = FakeLease()
             val controller = RenewingLeaseController(this, wake, wifi, renewAfterMillis = 100)
 
             controller.acquire()
@@ -69,6 +69,11 @@ class PowerLeaseTest {
             assertFalse(wifi.isHeld)
             assertEquals(1, wake.releaseCount)
             assertEquals(1, wifi.releaseCount)
+            advanceTimeBy(100)
+            runCurrent()
+            assertEquals(3, wake.acquireCount)
+            assertEquals(2, wifi.acquireCount)
+            controller.release()
         }
 
     private class FakeLease(

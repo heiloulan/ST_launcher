@@ -3,7 +3,6 @@ package com.wlav.stlauncher.web
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
-import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.webkit.CookieManager
 import androidx.core.net.toUri
@@ -53,24 +52,19 @@ class AndroidDownloadCoordinator(
         request: PendingSave,
         destination: Uri,
     ) = withContext(Dispatchers.IO) {
-        try {
-            resolver.openOutputStream(destination, "w").use { output ->
-                output ?: throw IOException(appContext.getString(R.string.download_open_target_failed))
-                when (request) {
-                    is PendingSave.RemoteUrl -> streamUrl(request, output)
-                    is PendingSave.TemporaryFile -> {
-                        File(request.path).inputStream().buffered().use { input ->
-                            input.copyTo(output, COPY_BUFFER_SIZE)
-                        }
+        resolver.openOutputStream(destination, "w").use { output ->
+            output ?: throw IOException(appContext.getString(R.string.download_open_target_failed))
+            when (request) {
+                is PendingSave.RemoteUrl -> streamUrl(request, output)
+                is PendingSave.TemporaryFile -> {
+                    File(request.path).inputStream().buffered().use { input ->
+                        input.copyTo(output, COPY_BUFFER_SIZE)
                     }
                 }
             }
-            if (request is PendingSave.TemporaryFile && request.deleteAfterSave) {
-                File(request.path).delete()
-            }
-        } catch (error: Throwable) {
-            deleteIncompleteDocument(destination)
-            throw error
+        }
+        if (request is PendingSave.TemporaryFile && request.deleteAfterSave) {
+            File(request.path).delete()
         }
     }
 
@@ -214,16 +208,6 @@ class AndroidDownloadCoordinator(
             "Invalid local cancellation URL"
         }
         return "http://127.0.0.1:${parsed.port}"
-    }
-
-    private fun deleteIncompleteDocument(uri: Uri) {
-        runCatching {
-            if (DocumentsContract.isDocumentUri(appContext, uri)) {
-                DocumentsContract.deleteDocument(resolver, uri)
-            } else {
-                resolver.delete(uri, null, null)
-            }
-        }
     }
 
     private fun Response.requireSuccess() {

@@ -42,6 +42,8 @@ class SecureWebBridge(
 
         /** Opens the native log screen. The bridge never ships log text itself. */
         fun onLogsRequested()
+
+        fun onLauncherMenuRequested()
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -100,9 +102,9 @@ class SecureWebBridge(
     ) {
         val script =
             "window.__stLauncherDownloadBlob(" +
-                "${'$'}{JSONObject.quote(url)}," +
-                "${'$'}{JSONObject.quote(fileName)}," +
-                "${'$'}{JSONObject.quote(mimeType)}" +
+                "${JSONObject.quote(url)}," +
+                "${JSONObject.quote(fileName)}," +
+                "${JSONObject.quote(mimeType)}" +
                 ").catch(console.error)"
         webView.evaluateJavascript(script, null)
     }
@@ -194,6 +196,10 @@ class SecureWebBridge(
                 }
                 "logs.open" -> {
                     callbacks.onLogsRequested()
+                    replySuccess(replyProxy, request.id)
+                }
+                "launcher.menu" -> {
+                    callbacks.onLauncherMenuRequested()
                     replySuccess(replyProxy, request.id)
                 }
                 else ->

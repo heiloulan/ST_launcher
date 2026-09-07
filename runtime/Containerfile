@@ -9,6 +9,7 @@ RUN apt-get update \
         binutils \
         ca-certificates \
         dpkg-dev \
+        patch \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

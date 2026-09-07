@@ -158,7 +158,7 @@ class RotatingLogStore(
     private fun activeOutput(): BufferedOutputStream = BufferedOutputStream(FileOutputStream(activeFile, true), DEFAULT_BUFFER_SIZE)
 
     companion object {
-        private const val FLUSH_EVERY_LINES = 20
+        private const val FLUSH_EVERY_LINES = 1
         private const val MAXIMUM_LINE_BYTES = 64 * 1024L
     }
 }

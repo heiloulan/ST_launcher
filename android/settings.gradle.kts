@@ -15,4 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "STLauncher"
 include(":app")
+include(":rescue")
 include(":runtime-core")

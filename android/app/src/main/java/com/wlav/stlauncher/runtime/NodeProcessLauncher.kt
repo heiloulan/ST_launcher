@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
@@ -100,6 +101,11 @@ class LinkerNodeProcessLauncher(
                     this["HOME"] = appContext.filesDir.absolutePath
                     this["PATH"] = "/system/bin"
                     this["NODE_ENV"] = "production"
+                    this["SILLYTAVERN_GIT_BACKEND"] = "builtin"
+                    this["ST_LAUNCHER_CONFIG_ROOT"] = request.configFile.parent.toString()
+                    this["ST_LAUNCHER_GLOBAL_EXTENSIONS"] = File(appContext.filesDir, "global-extensions").absolutePath
+                    this["ST_LAUNCHER_DEFAULT_EXTENSIONS"] =
+                        File(request.runtimeDirectory, "app/public/scripts/extensions/third-party").absolutePath
                     this["SILLYTAVERN_ENABLESERVERPLUGINS"] = "true"
                     this["SILLYTAVERN_ENABLESERVERPLUGINSAUTOUPDATE"] = "false"
                     this["ST_LAUNCHER_INSTANCE_ID"] = request.instanceId
@@ -182,9 +188,21 @@ private class AndroidManagedRuntime(
     override suspend fun awaitExit(): Int =
         withContext(Dispatchers.IO) {
             val code = process.waitFor()
-            outputJob.join()
+            drainOutput()
             code
         }
+
+    private suspend fun drainOutput() {
+        if (withTimeoutOrNull(2_000) {
+                outputJob.join()
+                true
+            } != true
+        ) {
+            runCatching { process.inputStream.close() }
+            outputJob.cancel()
+            logSession.close()
+        }
+    }
 
     override suspend fun terminate(graceMillis: Long) =
         withContext(Dispatchers.IO) {
@@ -192,7 +210,7 @@ private class AndroidManagedRuntime(
                 return@withContext
             }
             if (!process.isAlive) {
-                outputJob.join()
+                drainOutput()
                 return@withContext
             }
 
@@ -216,7 +234,7 @@ private class AndroidManagedRuntime(
                     ?: process.destroyForcibly()
                 process.waitFor(2, TimeUnit.SECONDS)
             }
-            outputJob.join()
+            drainOutput()
         }
 }
 

@@ -11,6 +11,7 @@ import java.util.Base64
 class BlobDownloadStore(
     cacheDirectory: File,
     private val reserveBytes: Long = 512L * 1024 * 1024,
+    private val retainedPath: String? = null,
 ) {
     private val root = File(cacheDirectory, "blob-downloads").apply { mkdirs() }
     private val mutex = Mutex()
@@ -18,8 +19,13 @@ class BlobDownloadStore(
 
     init {
         root
-            .listFiles { file -> file.name.endsWith(".part") }
-            ?.forEach(File::delete)
+            .listFiles { file ->
+                file.absolutePath != retainedPath &&
+                    (
+                        file.name.endsWith(".part") ||
+                            (file.name.endsWith(".ready") && System.currentTimeMillis() - file.lastModified() > 7L * 24 * 60 * 60 * 1000)
+                    )
+            }?.forEach(File::delete)
     }
 
     suspend fun begin(
@@ -86,10 +92,12 @@ class BlobDownloadStore(
             if (!session.file.isFile) {
                 throw IOException("Blob transfer produced no file")
             }
+            val ready = File(root, "$id.ready")
+            if (!session.file.renameTo(ready)) throw IOException("Unable to finish blob download")
             PendingSave.TemporaryFile(
                 fileName = session.fileName,
                 mimeType = session.mimeType,
-                path = session.file.absolutePath,
+                path = ready.absolutePath,
             )
         }
 

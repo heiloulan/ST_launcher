@@ -1,4 +1,5 @@
-import { constants as fsConstants, promises as fs, createReadStream, createWriteStream } from 'node:fs';
+import { promises as fs, createReadStream, createWriteStream } from 'node:fs';
+import { Transform } from 'node:stream';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
@@ -62,15 +63,16 @@ async function copyStableFile(source, destination, signal) {
         const partial = `${destination}.part`;
         await fs.rm(partial, { force: true });
         try {
-            await fs.copyFile(source, partial, fsConstants.COPYFILE_FICLONE);
+            const digest = crypto.createHash('sha256');
+            await pipeline(createReadStream(source), new Transform({
+                transform(chunk, encoding, callback) { digest.update(chunk); callback(null, chunk); },
+            }), createWriteStream(partial, { flags: 'wx', mode: 0o600 }));
+            const sourceDigest = digest.digest('hex');
             const [after, copied] = await Promise.all([
                 fs.stat(source, { bigint: true }),
                 fs.stat(partial, { bigint: true }),
             ]);
-            const [sourceDigest, copiedDigest] = await Promise.all([
-                sha256File(source),
-                sha256File(partial),
-            ]);
+            const copiedDigest = await sha256File(partial);
             const final = await fs.stat(source, { bigint: true });
             if (before.size === after.size
                 && before.mtimeNs === after.mtimeNs
@@ -125,8 +127,14 @@ export async function createStableSnapshot(sourceRoot, snapshotRoot, signal) {
     return { files, directories, copiedBytes };
 }
 
-export async function createTarGzip(snapshotData, archivePath, signal) {
-    const { files, directories } = await listSourceEntries(snapshotData, signal);
+export async function createTarGzip(snapshotData, archivePath, signal, additionalRoots = {}) {
+    const files = [];
+    const directories = [];
+    for (const [prefix, root] of Object.entries({ data: snapshotData, ...additionalRoots })) {
+        const entries = await listSourceEntries(root, signal);
+        directories.push(prefix, ...entries.directories.map(name => `${prefix}/${name}`));
+        files.push(...entries.files.map(file => ({ ...file, relative: `${prefix}/${file.relative}` })));
+    }
     const pack = tar.pack();
     const output = createWriteStream(`${archivePath}.part`, { flags: 'wx' });
     const archivePipeline = pipeline(
@@ -136,16 +144,11 @@ export async function createTarGzip(snapshotData, archivePath, signal) {
     );
 
     try {
-        await new Promise((resolve, reject) => {
-            pack.entry({ name: 'data/', type: 'directory', mode: 0o700 }, error => {
-                if (error) reject(error); else resolve();
-            });
-        });
         for (const directory of directories) {
             throwIfAborted(signal);
             await new Promise((resolve, reject) => {
                 pack.entry({
-                    name: `${path.posix.join('data', directory)}/`,
+                    name: `${directory}/`,
                     type: 'directory',
                     mode: 0o700,
                 }, error => {
@@ -156,7 +159,7 @@ export async function createTarGzip(snapshotData, archivePath, signal) {
         for (const file of files) {
             throwIfAborted(signal);
             const entry = pack.entry({
-                name: path.posix.join('data', file.relative),
+                name: file.relative,
                 type: 'file',
                 size: file.size,
                 mode: 0o600,
@@ -183,13 +186,24 @@ export async function createTarGzip(snapshotData, archivePath, signal) {
     }
 }
 
-export async function prepareExport(dataRoot, operationRoot, signal) {
+export async function prepareExport(dataRoot, operationRoot, signal, additionalRoots = {}) {
     const snapshotData = path.join(operationRoot, 'snapshot', 'data');
     const archivePath = path.join(operationRoot, 'export.tar.gz');
     await fs.mkdir(operationRoot, { recursive: true });
     try {
         await createStableSnapshot(dataRoot, snapshotData, signal);
-        return await createTarGzip(snapshotData, archivePath, signal);
+        const extraSnapshots = {};
+        for (const [name, source] of Object.entries(additionalRoots)) {
+            if (!source) continue;
+            const target = path.join(operationRoot, 'snapshot', name);
+            if (name === 'config') {
+                await copyStableFile(path.join(source, 'config.yaml'), path.join(target, 'config.yaml'), signal);
+            } else {
+                await createStableSnapshot(source, target, signal);
+            }
+            extraSnapshots[name] = target;
+        }
+        return await createTarGzip(snapshotData, archivePath, signal, extraSnapshots);
     } finally {
         await fs.rm(path.join(operationRoot, 'snapshot'), {
             recursive: true,

@@ -11,8 +11,8 @@ android {
         applicationId = "com.wlav.stlauncher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 26
-        versionName = "0.26"
+        versionCode = 31
+        versionName = "0.27.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {

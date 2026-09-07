@@ -70,12 +70,12 @@ class RuntimeStatusPresenterTest {
     }
 
     @Test
-    fun `idle stops the progress bar and puts the figure to sleep`() {
+    fun `idle stops progress and allows restarting after an offline backup`() {
         val view = RuntimeStatusPresenter.present(RuntimeState.Idle)
 
         assertEquals(R.string.status_idle, view.titleRes)
         assertFalse(view.showProgress)
-        assertFalse(view.showRetry)
+        assertTrue(view.showRetry)
         assertEquals(KaomojiMood.SLEEPING, view.mood)
     }
 

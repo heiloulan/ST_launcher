@@ -71,7 +71,7 @@ jobs:
 
           test "$(apkanalyzer manifest application-id ST-Launcher-rescue-test.apk)" = \
             "com.wlav.stlauncher"
-          test "$(apkanalyzer manifest version-code ST-Launcher-rescue-test.apk)" = "27"
+          test "$(apkanalyzer manifest version-code ST-Launcher-rescue-test.apk)" = "31"
           if unzip -Z1 ST-Launcher-rescue-test.apk | grep -Eq \
             '^(assets/runtime|lib/.*/libstnode\.so)'; then
             echo "Rescue APK unexpectedly contains the SillyTavern runtime" >&2

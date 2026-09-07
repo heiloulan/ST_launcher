@@ -10,8 +10,9 @@ android {
         applicationId = "com.wlav.stlauncher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 27
-        versionName = "0.26-rescue-test1"
+        // Match :app so the rescue and normal APKs can replace each other.
+        versionCode = 31
+        versionName = "0.27.3-rescue"
     }
 
     buildTypes {

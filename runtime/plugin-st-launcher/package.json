@@ -6,7 +6,7 @@
   "description": "Transactional backup and health integration for ST Launcher",
   "license": "AGPL-3.0-only",
   "dependencies": {
-    "tar-stream": "3.1.7"
+    "tar-stream": "3.2.2"
   },
   "engines": {
     "node": ">=24"

@@ -10,7 +10,7 @@
     "@eslint/js": "10.0.1",
     "eslint": "10.8.0",
     "globals": "17.8.0",
-    "isomorphic-git": "1.37.2"
+    "isomorphic-git": "1.43.0"
   },
   "engines": {
     "node": ">=24"
